@@ -63,6 +63,8 @@ dogari/
 ├── requirements.txt
 ├── pyproject.toml
 ├── data/                   # Base SQLite, images de visages, logs (non versionné)
+├── scripts/
+│   └── evaluate_recognition.py  # Évaluation de la précision (accuracy/FAR/FRR)
 ├── src/dogari/
 │   ├── core/                # Configuration, constantes, exceptions
 │   ├── vision/               # Caméra, détection faciale, embeddings, reconnaissance
@@ -81,6 +83,35 @@ pytest
 Les tests de stockage et de contrôle d'accès s'exécutent sans dépendre du matériel
 (caméra, GPIO) grâce à une base de données temporaire et à l'injection de
 dépendances (voir `tests/conftest.py`).
+
+## Évaluer la précision de la reconnaissance faciale
+
+`scripts/evaluate_recognition.py` mesure l'exactitude réelle du modèle sur un
+jeu de test étiqueté (utile pour un rapport PFE/Master, ou pour choisir la
+bonne valeur de `DOGARI_RECOGNITION_TOLERANCE`). Il calcule l'accuracy ainsi
+que le taux de faux positifs (FAR) et de faux négatifs (FRR).
+
+Préparez un dossier avec la structure suivante :
+
+```
+mon_jeu_de_test/
+├── gallery/            # images de référence, une par utilisateur connu
+│   ├── alice/*.jpg
+│   └── bob/*.jpg
+└── probes/             # images à tester
+    ├── alice/*.jpg     # doivent être reconnues comme "alice"
+    ├── bob/*.jpg       # doivent être reconnues comme "bob"
+    └── unknown/*.jpg   # doivent être rejetées (personnes non enregistrées)
+```
+
+Puis lancez :
+
+```bash
+python scripts/evaluate_recognition.py mon_jeu_de_test
+python scripts/evaluate_recognition.py mon_jeu_de_test --tolerance 0.5
+python scripts/evaluate_recognition.py mon_jeu_de_test --sweep          # balaie plusieurs seuils
+python scripts/evaluate_recognition.py mon_jeu_de_test --csv resultats.csv
+```
 
 ## État d'avancement
 
