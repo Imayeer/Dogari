@@ -86,7 +86,7 @@ def deactivate(user_id: int) -> UserOut:
     return UserOut.from_user(user)
 
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete("/{user_id}", status_code=204, response_model=None)
 def remove_user(user_id: int) -> None:
     """Supprime définitivement un utilisateur."""
     try:
