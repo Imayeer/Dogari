@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Tests / outils
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Données locales sensibles (générées à l'exécution, non versionnées)
+data/database/*.db
+data/database/*.sqlite3
+data/faces/*
+!data/faces/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+
+# Environnement / secrets
+.env
+.env.*
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store

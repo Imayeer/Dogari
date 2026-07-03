@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dogari — Contrôle d'accès</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <header>
+        <h1>Dogari</h1>
+        <p>Système intelligent de contrôle d'accès — v{{ version }}</p>
+    </header>
+
+    <main>
+        <section id="status-section">
+            <h2>Statut du système</h2>
+            <div id="status-cards" class="cards"></div>
+        </section>
+
+        <section id="recognize-section">
+            <h2>Reconnaissance faciale</h2>
+            <button id="recognize-btn">Lancer une tentative d'accès</button>
+            <div id="recognize-result"></div>
+        </section>
+
+        <section id="add-user-section">
+            <h2>Ajouter un utilisateur</h2>
+            <form id="add-user-form">
+                <label>
+                    Nom complet
+                    <input type="text" name="full_name" required />
+                </label>
+                <label>
+                    Rôle
+                    <input type="text" name="role" />
+                </label>
+                <label>
+                    Image de référence (visage)
+                    <input type="file" name="face_image" accept="image/*" required />
+                </label>
+                <button type="submit">Ajouter</button>
+            </form>
+            <div id="add-user-result"></div>
+        </section>
+
+        <section id="users-section">
+            <h2>Utilisateurs autorisés</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Rôle</th>
+                        <th>Statut</th>
+                        <th>Créé le</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body"></tbody>
+            </table>
+        </section>
+
+        <section id="logs-section">
+            <h2>Derniers accès</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Utilisateur</th>
+                        <th>Statut</th>
+                        <th>Score</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
