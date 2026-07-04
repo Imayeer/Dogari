@@ -1,0 +1,9 @@
+# Dépendance optionnelle pour la détection d'armes EXPÉRIMENTALE
+# (src/dogari/vision/weapon_detector.py). Non incluse dans requirements.txt
+# car elle installe torch (lourd) et n'apporte aucune garantie de fiabilité :
+# voir le README avant d'activer DOGARI_WEAPON_DETECTION_ENABLED.
+#
+# Installation :
+#   pip install -r requirements-weapon-detection.txt
+
+ultralytics==8.3.55

@@ -114,6 +114,31 @@ class Settings:
         default_factory=lambda: _env_int("DOGARI_ANOMALY_OFF_HOURS_END", 20)
     )
 
+    # Recherche continue d'une personne nommée sur un flux caméra (voir access/person_search.py)
+    search_poll_interval_seconds: float = field(
+        default_factory=lambda: _env_float("DOGARI_SEARCH_POLL_INTERVAL_SECONDS", 2.0)
+    )
+    search_sighting_cooldown_seconds: float = field(
+        default_factory=lambda: _env_float("DOGARI_SEARCH_SIGHTING_COOLDOWN_SECONDS", 30.0)
+    )
+
+    # Surveillance sécurité continue : foule et armes (voir access/security_monitor.py)
+    monitoring_poll_interval_seconds: float = field(
+        default_factory=lambda: _env_float("DOGARI_MONITORING_POLL_INTERVAL_SECONDS", 2.0)
+    )
+    crowd_size_threshold: int = field(default_factory=lambda: _env_int("DOGARI_CROWD_SIZE_THRESHOLD", 5))
+
+    # Détection d'armes (EXPÉRIMENTALE, best-effort - voir vision/weapon_detector.py et README)
+    weapon_detection_enabled: bool = field(
+        default_factory=lambda: _env_bool("DOGARI_WEAPON_DETECTION_ENABLED", False)
+    )
+    weapon_model_path: Path = field(
+        default_factory=lambda: _env_path("DOGARI_WEAPON_MODEL_PATH", BASE_DIR / "models" / "weapon_detection.pt")
+    )
+    weapon_confidence_threshold: float = field(
+        default_factory=lambda: _env_float("DOGARI_WEAPON_CONFIDENCE_THRESHOLD", 0.5)
+    )
+
     # Contrôle de porte
     door_hold_seconds: float = field(default_factory=lambda: _env_float("DOGARI_DOOR_HOLD_SECONDS", 5.0))
     use_gpio: bool = field(default_factory=lambda: _env_bool("DOGARI_USE_GPIO", False))

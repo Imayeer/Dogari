@@ -32,8 +32,30 @@ CREATE TABLE IF NOT EXISTS access_logs (
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS person_sightings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_id TEXT NOT NULL,
+    user_id INTEGER,
+    full_name TEXT,
+    camera_source TEXT,
+    similarity_score REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS security_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    message TEXT,
+    camera_source TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_access_logs_created_at ON access_logs (created_at);
 CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
+CREATE INDEX IF NOT EXISTS idx_person_sightings_search_id ON person_sightings (search_id);
+CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events (created_at);
 """
 
 

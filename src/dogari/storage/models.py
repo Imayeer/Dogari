@@ -84,3 +84,51 @@ class AccessLog:
             message=row["message"],
             created_at=row["created_at"],
         )
+
+
+@dataclass
+class PersonSighting:
+    """Représente une observation d'une personne recherchée sur un flux caméra."""
+
+    id: int | None
+    search_id: str
+    user_id: int | None
+    full_name: str | None
+    camera_source: str | None
+    similarity_score: float | None
+    created_at: str | None
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "PersonSighting":
+        return cls(
+            id=row["id"],
+            search_id=row["search_id"],
+            user_id=row["user_id"],
+            full_name=row["full_name"],
+            camera_source=row["camera_source"],
+            similarity_score=row["similarity_score"],
+            created_at=row["created_at"],
+        )
+
+
+@dataclass
+class SecurityEvent:
+    """Représente un événement de sécurité détecté par la surveillance caméra (foule, arme)."""
+
+    id: int | None
+    kind: str
+    severity: str
+    message: str | None
+    camera_source: str | None
+    created_at: str | None
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "SecurityEvent":
+        return cls(
+            id=row["id"],
+            kind=row["kind"],
+            severity=row["severity"],
+            message=row["message"],
+            camera_source=row["camera_source"],
+            created_at=row["created_at"],
+        )
