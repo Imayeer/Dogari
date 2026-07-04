@@ -215,6 +215,23 @@ Fonctionnalités ajoutées sur demande, au-delà du périmètre initial de la Ph
   de la reconnaissance faciale (YuNet/SFace), aucun modèle de référence officiellement validé n'existe pour
   cet usage ; voir l'avertissement détaillé dans le README avant toute activation.
 
+### Phase 8++ — Contrôle d'accès multi-portails et rôles ✅
+
+Remplace le modèle caméra principale/secondaire (fixé par variables d'environnement) par un modèle
+multi-portail géré en base de données, sur demande :
+
+- **Portails** (`storage/portals_repository.py`) : points d'accès nommés, chacun avec sa propre caméra
+  (USB ou IP) et sa propre porte (simulée ou GPIO). C'est ce que cible une tentative de reconnaissance.
+- **Caméras IP** (`storage/ip_cameras_repository.py`) : caméras de surveillance sans porte, utilisées
+  uniquement par la recherche de personne et la surveillance sécurité.
+- **Rôles et horaires hebdomadaires** (`storage/roles_repository.py`, `storage/role_schedules_repository.py`,
+  `access/role_access.py`) : un utilisateur reconnu n'obtient l'accès que si son rôle a un horaire configuré
+  pour le portail visé, au jour de la semaine et à l'heure courants. Sinon, refus avec le statut
+  `portal_not_authorized` (identité tout de même journalisée, à la différence d'un visage inconnu).
+
+Tout se gère via l'API (`/api/portals`, `/api/ip-cameras`, `/api/roles`) ou le tableau de bord, désormais
+organisé en onglets (Vue d'ensemble / Contrôle d'accès / Utilisateurs & Rôles / Surveillance / Rapports).
+
 ## 11. Modèle de données
 
 ### Table users
@@ -223,7 +240,7 @@ Fonctionnalités ajoutées sur demande, au-delà du périmètre initial de la Ph
 |---|---|---|
 | id | INTEGER | Identifiant unique |
 | full_name | TEXT | Nom complet |
-| role | TEXT | Rôle ou fonction |
+| role_id | INTEGER | Rôle d'accès (référence `roles.id`) |
 | status | TEXT | active/inactive |
 | face_image_path | TEXT | Chemin de l'image de référence |
 | face_embedding | BLOB | Représentation numérique du visage |
@@ -239,8 +256,51 @@ Fonctionnalités ajoutées sur demande, au-delà du périmètre initial de la Ph
 | status | TEXT | granted/denied/error |
 | similarity_score | REAL | Score de similarité |
 | camera_source | TEXT | Source caméra |
+| portal_id | INTEGER | Portail ciblé (référence `portals.id`) |
 | message | TEXT | Détail de la tentative |
 | created_at | TEXT | Date et heure |
+
+### Table portals
+
+| Champ | Type | Description |
+|---|---|---|
+| id | INTEGER | Identifiant unique |
+| name | TEXT | Nom du portail (unique) |
+| camera_source | TEXT | Index caméra ou URL RTSP/HTTP |
+| camera_kind | TEXT | usb/ip |
+| door_type | TEXT | simulated/gpio |
+| gpio_relay_pin | INTEGER | Broche GPIO du relais (si door_type=gpio) |
+| status | TEXT | active/inactive |
+| created_at | TEXT | Date de création |
+
+### Table ip_cameras
+
+| Champ | Type | Description |
+|---|---|---|
+| id | INTEGER | Identifiant unique |
+| name | TEXT | Nom de la caméra (unique) |
+| source | TEXT | URL RTSP/HTTP |
+| status | TEXT | active/inactive |
+| created_at | TEXT | Date de création |
+
+### Table roles
+
+| Champ | Type | Description |
+|---|---|---|
+| id | INTEGER | Identifiant unique |
+| name | TEXT | Nom du rôle (unique) |
+| created_at | TEXT | Date de création |
+
+### Table role_portal_schedules
+
+| Champ | Type | Description |
+|---|---|---|
+| id | INTEGER | Identifiant unique |
+| role_id | INTEGER | Rôle concerné |
+| portal_id | INTEGER | Portail concerné |
+| weekday | INTEGER | Jour de semaine (0=lundi ... 6=dimanche) |
+| start_time | TEXT | Heure de début (HH:MM:SS) |
+| end_time | TEXT | Heure de fin (HH:MM:SS) |
 
 ## 12. Critères de réussite du MVP
 

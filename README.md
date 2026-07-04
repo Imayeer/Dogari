@@ -6,11 +6,14 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 
 ## Fonctionnalités du MVP
 
-- Capture vidéo depuis une webcam/caméra USB, avec caméra IP secondaire optionnelle (OpenCV).
+- Capture vidéo depuis une ou plusieurs caméras (webcam USB ou IP, OpenCV).
 - Détection et reconnaissance faciale (YuNet + SFace, modèles ONNX via `cv2.dnn`).
 - Détection de vivacité par analyse de mouvement inter-images (anti-usurpation par photo/écran statique).
+- **Portails** : points d'accès nommés (caméra + porte simulée/GPIO), gérés dans la base (pas dans le code).
+- **Rôles d'accès** : chaque utilisateur a un rôle, et chaque rôle n'a accès qu'aux portails et
+  créneaux horaires hebdomadaires explicitement définis (voir section dédiée).
 - Enregistrement des utilisateurs autorisés (nom, rôle, image de référence, embedding facial).
-- Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte.
+- Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte ou relais GPIO réel.
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
 - Détection d'anomalies par règles (refus répétés, accès hors horaires, pics de fréquence).
 - Génération de rapports de synthèse (quotidien/hebdomadaire), exportables en CSV/texte.
@@ -68,8 +71,7 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | Variable | Description | Défaut |
 |---|---|---|
 | `DOGARI_DATA_DIR` | Dossier de données (base SQLite, images, logs) | `data/` |
-| `DOGARI_CAMERA_INDEX` | Index de la caméra principale (webcam USB) ou URL RTSP/HTTP | `0` |
-| `DOGARI_SECONDARY_CAMERA_SOURCE` | URL RTSP/HTTP d'une caméra IP secondaire optionnelle | non configurée |
+| `DOGARI_CAMERA_INDEX` / `DOGARI_SECONDARY_CAMERA_SOURCE` | Utilisées **une seule fois**, au tout premier démarrage, pour créer un portail et une caméra IP par défaut dans la base. Sans effet ensuite : gérez les caméras via `/api/portals` et `/api/ip-cameras` (voir section dédiée). | `0` / non configurée |
 | `DOGARI_YUNET_MODEL_PATH` | Chemin du modèle de détection YuNet (`.onnx`) | `models/face_detection_yunet_2023mar.onnx` |
 | `DOGARI_SFACE_MODEL_PATH` | Chemin du modèle de reconnaissance SFace (`.onnx`) | `models/face_recognition_sface_2021dec.onnx` |
 | `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance L2 pour la reconnaissance faciale (plus petit = plus strict) | `1.128` |
@@ -177,21 +179,66 @@ anomalies incluses). Disponible de trois façons :
   0 8 * * 1 cd /chemin/vers/dogari && .venv/bin/python scripts/generate_report.py --days 7 --output data/logs/rapport_hebdo.txt
   ```
 
-## Caméra IP secondaire
+## Portails, caméras IP et rôles d'accès
 
-Une seconde caméra (URL RTSP/HTTP) peut être configurée via
-`DOGARI_SECONDARY_CAMERA_SOURCE`, par exemple :
+C'est le cœur du contrôle d'accès multi-portes : au premier démarrage, un
+portail par défaut ("Portail principal") est créé à partir de
+`DOGARI_CAMERA_INDEX`/`DOGARI_USE_GPIO`. Au-delà, tout se gère via l'onglet
+**Contrôle d'accès** / **Utilisateurs & Rôles** du tableau de bord, ou l'API.
+
+### Portails vs. caméras IP
+
+- **Portail** (`/api/portals`) : un point d'accès physique — nom, source
+  caméra (index USB ou URL RTSP/HTTP), et une porte (simulée ou GPIO avec sa
+  broche). C'est ce que cible une tentative de reconnaissance
+  (`POST /api/access/recognize?portal_id=...`).
+- **Caméra IP** (`/api/ip-cameras`) : une caméra de surveillance sans porte
+  associée — utilisée uniquement par la recherche de personne et la
+  surveillance sécurité, jamais pour décider d'un accès.
 
 ```bash
-DOGARI_SECONDARY_CAMERA_SOURCE=rtsp://192.168.1.50:554/stream1 python -m dogari.web.app
+# Créer un portail (webcam USB, porte simulée)
+curl -X POST http://localhost:8000/api/portals -H "Content-Type: application/json" \
+  -d '{"name": "Entrée principale", "camera_source": "0", "camera_kind": "usb", "door_type": "simulated"}'
+
+# Créer un portail avec une gâche GPIO réelle (Raspberry Pi)
+curl -X POST http://localhost:8000/api/portals -H "Content-Type: application/json" \
+  -d '{"name": "Portail Nord", "camera_source": "1", "door_type": "gpio", "gpio_relay_pin": 17}'
+
+# Ajouter une caméra IP de surveillance (pas un portail)
+curl -X POST http://localhost:8000/api/ip-cameras -H "Content-Type: application/json" \
+  -d '{"name": "Parking", "source": "rtsp://192.168.1.50:554/stream1"}'
 ```
 
-Une fois configurée, elle apparaît dans le sélecteur "Caméra" du tableau de
-bord et peut être ciblée directement via l'API :
-`POST /api/access/recognize?camera=secondary` (`camera=primary` par défaut).
-La caméra principale (`DOGARI_CAMERA_INDEX`) accepte elle aussi une URL
-RTSP/HTTP à la place d'un index numérique, si vous préférez n'utiliser que des
-caméras IP.
+### Rôles et horaires d'accès
+
+Un visage reconnu ne suffit pas : l'utilisateur doit avoir un **rôle**, et ce
+rôle doit avoir un horaire configuré pour **ce portail précis**. Aucun horaire
+pour un portail donné = aucun accès à ce portail, à aucun moment. Les horaires
+sont définis **par jour de la semaine** (0 = lundi ... 6 = dimanche), pas
+seulement par plage horaire globale.
+
+```bash
+# Créer un rôle
+curl -X POST http://localhost:8000/api/roles -H "Content-Type: application/json" -d '{"name": "Professeur"}'
+
+# Autoriser ce rôle sur un portail, le lundi de 8h à 18h
+curl -X POST http://localhost:8000/api/roles/<role_id>/schedules -H "Content-Type: application/json" \
+  -d '{"portal_id": <portal_id>, "weekday": 0, "start_time": "08:00", "end_time": "18:00"}'
+
+# Retirer tout accès de ce rôle à ce portail
+curl -X DELETE http://localhost:8000/api/roles/<role_id>/portals/<portal_id>
+```
+
+Un utilisateur reconnu mais dont le rôle n'a pas d'horaire valide pour le
+portail visé est refusé avec le statut `portal_not_authorized` (son identité
+reste journalisée, contrairement à un visage réellement inconnu). Assignez un
+rôle à un utilisateur via `role_id` lors de sa création
+(`POST /api/users`, champ de formulaire) ou depuis le tableau de bord.
+
+Un rôle encore utilisé par un utilisateur ne peut pas être supprimé
+(`DELETE /api/roles/{id}` renvoie alors 409) : réassignez d'abord ses
+utilisateurs à un autre rôle.
 
 ## Recherche continue d'une personne sur un flux caméra
 
@@ -202,10 +249,10 @@ compare chaque visage détecté à l'embedding de la personne nommée, et
 journalise chaque observation ("sighting").
 
 ```bash
-# Démarrer une recherche
+# Démarrer une recherche (sur un portail OU une caméra IP, pas les deux)
 curl -X POST http://localhost:8000/api/search/start \
   -H "Content-Type: application/json" \
-  -d '{"full_name": "Alice Dupont", "camera": "secondary"}'
+  -d '{"full_name": "Alice Dupont", "ip_camera_id": <ip_camera_id>}'
 
 # Lister les recherches actives, consulter les observations, arrêter
 curl http://localhost:8000/api/search
@@ -254,7 +301,7 @@ Démarre une surveillance en tâche de fond sur une caméra, avec deux volets :
 Utilisation (dashboard, section "Surveillance sécurité", ou API) :
 
 ```bash
-curl -X POST http://localhost:8000/api/monitoring/start -H "Content-Type: application/json" -d '{"camera": "primary"}'
+curl -X POST http://localhost:8000/api/monitoring/start -H "Content-Type: application/json" -d '{"portal_id": <portal_id>}'
 curl http://localhost:8000/api/monitoring/events
 curl -X POST http://localhost:8000/api/monitoring/<monitor_id>/stop
 ```
@@ -293,16 +340,22 @@ python scripts/evaluate_recognition.py mon_jeu_de_test --csv resultats.csv
 Les phases 1 à 6 du MVP sont implémentées : structure du projet, base de données,
 module caméra, reconnaissance faciale, contrôle d'accès et interface web. Les
 améliorations de la Phase 8 sont également implémentées : détection de vivacité,
-caméra IP secondaire, détection d'anomalies et rapports automatiques. Le
-contrôle GPIO réel (Phase 7) est préparé via `GPIODoorController` dans
-`src/dogari/access/door.py`, activable sur Raspberry Pi avec `DOGARI_USE_GPIO=true`
-une fois le matériel branché — il reste à valider sur le matériel réel. Le détail
-des phases est documenté dans [PROJECT.md](PROJECT.md).
+détection d'anomalies et rapports automatiques. Le contrôle GPIO réel (Phase 7)
+est préparé via `GPIODoorController` dans `src/dogari/access/door.py`,
+configurable par portail (`door_type: "gpio"`) — il reste à valider sur le
+matériel réel. Le détail des phases est documenté dans [PROJECT.md](PROJECT.md).
 
-Au-delà de la Phase 8 initiale, trois fonctionnalités de sécurité
-supplémentaires ont été ajoutées sur demande : recherche continue d'une
-personne nommée sur un flux caméra, détection de foule ("mouvements de
-masse"), et détection d'armes. Cette dernière est explicitement
-**expérimentale** (voir la section dédiée ci-dessus) : aucun modèle de
-référence validé n'existe pour cet usage, contrairement à la détection
-faciale.
+Au-delà de la Phase 8 initiale, plusieurs fonctionnalités ont été ajoutées sur
+demande :
+
+- **Portails, caméras IP et rôles d'accès** : le contrôle d'accès est passé
+  d'un modèle "caméra principale/secondaire" figé par variables d'environnement
+  à un modèle multi-portail géré en base (portails, caméras IP, rôles, horaires
+  hebdomadaires par rôle/portail) — voir la section dédiée.
+- Recherche continue d'une personne nommée sur un flux caméra.
+- Détection de foule ("mouvements de masse").
+- Détection d'armes, explicitement **expérimentale** (voir la section dédiée) :
+  aucun modèle de référence validé n'existe pour cet usage, contrairement à la
+  détection faciale.
+- Tableau de bord réorganisé en onglets (Vue d'ensemble / Contrôle d'accès /
+  Utilisateurs & Rôles / Surveillance / Rapports).
