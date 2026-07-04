@@ -40,6 +40,8 @@ class AccessLogOut(BaseModel):
     status: str
     similarity_score: float | None
     camera_source: str | None
+    portal_id: int | None
+    portal_name: str | None
     message: str | None
     created_at: str | None
 
@@ -52,6 +54,8 @@ class AccessLogOut(BaseModel):
             status=log.status,
             similarity_score=log.similarity_score,
             camera_source=log.camera_source,
+            portal_id=log.portal_id,
+            portal_name=log.portal_name,
             message=log.message,
             created_at=log.created_at,
         )

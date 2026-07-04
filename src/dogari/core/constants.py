@@ -28,6 +28,7 @@ class RecognitionStatus(str, Enum):
     NO_FACE_DETECTED = "no_face_detected"
     MULTIPLE_FACES_DETECTED = "multiple_faces_detected"
     SPOOF_DETECTED = "spoof_detected"
+    PORTAL_NOT_AUTHORIZED = "portal_not_authorized"
     ERROR = "error"
 
 

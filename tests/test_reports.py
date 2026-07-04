@@ -17,6 +17,8 @@ def _log(log_id: int, status: str, created_at: str, full_name: str | None = None
         status=status,
         similarity_score=None,
         camera_source="0",
+        portal_id=None,
+        portal_name=None,
         message="",
         created_at=created_at,
     )

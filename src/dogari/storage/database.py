@@ -27,9 +27,11 @@ CREATE TABLE IF NOT EXISTS access_logs (
     status TEXT NOT NULL,
     similarity_score REAL,
     camera_source TEXT,
+    portal_id INTEGER,
     message TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    FOREIGN KEY (portal_id) REFERENCES portals (id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS person_sightings (
@@ -96,19 +98,21 @@ CREATE INDEX IF NOT EXISTS idx_role_portal_schedules_role_id ON role_portal_sche
 CREATE INDEX IF NOT EXISTS idx_role_portal_schedules_portal_id ON role_portal_schedules (portal_id);
 """
 
-# Colonnes ajoutées après la création initiale de `users` (migration légère, sans
-# dépendance externe) : ajoutées uniquement si absentes, pour ne pas casser les
-# bases existantes créées avant l'introduction des rôles d'accès.
-_USERS_MIGRATIONS = [
-    ("role_id", "role_id INTEGER REFERENCES roles(id)"),
-]
+# Colonnes ajoutées après la création initiale des tables (migration légère,
+# sans dépendance externe) : ajoutées uniquement si absentes, pour ne pas
+# casser les bases existantes créées avant l'introduction des portails/rôles.
+_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
+    "users": [("role_id", "role_id INTEGER REFERENCES roles(id)")],
+    "access_logs": [("portal_id", "portal_id INTEGER REFERENCES portals(id)")],
+}
 
 
 def _apply_column_migrations(connection: sqlite3.Connection) -> None:
-    existing_columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
-    for column, ddl in _USERS_MIGRATIONS:
-        if column not in existing_columns:
-            connection.execute(f"ALTER TABLE users ADD COLUMN {ddl}")
+    for table, migrations in _COLUMN_MIGRATIONS.items():
+        existing_columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        for column, ddl in migrations:
+            if column not in existing_columns:
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
 
 
 def get_connection(db_path: Path | None = None) -> sqlite3.Connection:

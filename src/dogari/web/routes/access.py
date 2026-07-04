@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, HTTPException
 
 from dogari.access.anomaly import detect_anomalies
 from dogari.access.controller import AccessController
-from dogari.core.config import settings
 from dogari.core.exceptions import DogariError
 from dogari.storage.access_logs_repository import get_recent_logs
 from dogari.web.schemas import AccessAttemptOut, AccessLogOut, AnomalyEventOut
@@ -17,18 +14,13 @@ router = APIRouter(prefix="/api/access", tags=["access"])
 
 
 @router.post("/recognize", response_model=AccessAttemptOut)
-def recognize(camera: Literal["primary", "secondary"] = "primary") -> AccessAttemptOut:
-    """Lance une tentative de reconnaissance faciale depuis la caméra choisie (principale ou IP secondaire)."""
-    camera_source = None
-    if camera == "secondary":
-        if settings.secondary_camera_source is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Aucune caméra secondaire configurée (DOGARI_SECONDARY_CAMERA_SOURCE).",
-            )
-        camera_source = settings.secondary_camera_source
+def recognize(portal_id: int) -> AccessAttemptOut:
+    """Lance une tentative de reconnaissance faciale sur le portail donné."""
+    try:
+        controller = AccessController(portal_id)
+    except DogariError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    controller = AccessController(camera_source=camera_source)
     try:
         result = controller.attempt_access()
     except DogariError as exc:

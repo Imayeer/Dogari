@@ -67,6 +67,8 @@ class AccessLog:
     status: str
     similarity_score: float | None
     camera_source: str | None
+    portal_id: int | None
+    portal_name: str | None
     message: str | None
     created_at: str | None
 
@@ -83,6 +85,8 @@ class AccessLog:
             status=row["status"],
             similarity_score=row["similarity_score"],
             camera_source=row["camera_source"],
+            portal_id=row["portal_id"],
+            portal_name=row["portal_name"] if "portal_name" in row.keys() else None,
             message=row["message"],
             created_at=row["created_at"],
         )

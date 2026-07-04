@@ -80,7 +80,19 @@ class GPIODoorController(DoorController):
 
 
 def get_door_controller() -> DoorController:
-    """Retourne l'implémentation de contrôle de porte adaptée à la configuration."""
+    """Retourne l'implémentation de contrôle de porte adaptée à la configuration globale.
+
+    Conservée pour compatibilité (valeurs par défaut/scripts) ; le contrôle
+    d'accès réel utilise `get_door_controller_for_portal`, propre à chaque
+    portail (voir `access/controller.py`).
+    """
     if settings.use_gpio:
         return GPIODoorController()
+    return SimulatedDoorController()
+
+
+def get_door_controller_for_portal(door_type: str, gpio_relay_pin: int | None) -> DoorController:
+    """Retourne le contrôleur de porte adapté à la configuration d'un portail donné."""
+    if door_type == "gpio":
+        return GPIODoorController(relay_pin=gpio_relay_pin)
     return SimulatedDoorController()
