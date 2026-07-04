@@ -8,7 +8,16 @@ from dogari.access.anomaly import AnomalyEvent
 from dogari.access.person_search import PersonSearch
 from dogari.access.reports import AccessReport, DailyStats
 from dogari.access.security_monitor import SecurityMonitor
-from dogari.storage.models import AccessLog, PersonSighting, SecurityEvent, User
+from dogari.storage.models import (
+    AccessLog,
+    IPCamera,
+    PersonSighting,
+    Portal,
+    Role,
+    RolePortalSchedule,
+    SecurityEvent,
+    User,
+)
 
 
 class UserOut(BaseModel):
@@ -202,12 +211,84 @@ class SecurityEventOut(BaseModel):
         )
 
 
+class PortalOut(BaseModel):
+    id: int
+    name: str
+    camera_source: str
+    camera_kind: str
+    door_type: str
+    gpio_relay_pin: int | None
+    status: str
+    created_at: str | None
+
+    @classmethod
+    def from_portal(cls, portal: Portal) -> "PortalOut":
+        return cls(
+            id=portal.id,
+            name=portal.name,
+            camera_source=portal.camera_source,
+            camera_kind=portal.camera_kind,
+            door_type=portal.door_type,
+            gpio_relay_pin=portal.gpio_relay_pin,
+            status=portal.status,
+            created_at=portal.created_at,
+        )
+
+
+class IPCameraOut(BaseModel):
+    id: int
+    name: str
+    source: str
+    status: str
+    created_at: str | None
+
+    @classmethod
+    def from_ip_camera(cls, camera: IPCamera) -> "IPCameraOut":
+        return cls(
+            id=camera.id,
+            name=camera.name,
+            source=camera.source,
+            status=camera.status,
+            created_at=camera.created_at,
+        )
+
+
+class RoleOut(BaseModel):
+    id: int
+    name: str
+    created_at: str | None
+
+    @classmethod
+    def from_role(cls, role: Role) -> "RoleOut":
+        return cls(id=role.id, name=role.name, created_at=role.created_at)
+
+
+class RolePortalScheduleOut(BaseModel):
+    id: int
+    role_id: int
+    portal_id: int
+    weekday: int
+    start_time: str
+    end_time: str
+
+    @classmethod
+    def from_schedule(cls, schedule: RolePortalSchedule) -> "RolePortalScheduleOut":
+        return cls(
+            id=schedule.id,
+            role_id=schedule.role_id,
+            portal_id=schedule.portal_id,
+            weekday=schedule.weekday,
+            start_time=schedule.start_time,
+            end_time=schedule.end_time,
+        )
+
+
 class SystemStatusOut(BaseModel):
     version: str
     database_ok: bool
     users_count: int
     active_users_count: int
     recent_access_count: int
-    door_mode: str
-    camera_source: str
-    secondary_camera_source: str | None
+    portals_count: int
+    ip_cameras_count: int
+    roles_count: int

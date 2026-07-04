@@ -12,7 +12,8 @@ from fastapi.templating import Jinja2Templates
 from dogari import __version__
 from dogari.core.config import settings
 from dogari.storage.database import initialize_database
-from dogari.web.routes import access, monitoring, reports, search, status, users
+from dogari.storage.seed import seed_defaults
+from dogari.web.routes import access, ip_cameras, monitoring, portals, reports, roles, search, status, users
 
 WEB_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
@@ -26,11 +27,15 @@ def create_app() -> FastAPI:
     def _on_startup() -> None:
         settings.ensure_directories()
         initialize_database()
+        seed_defaults()
 
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
     app.include_router(status.router)
     app.include_router(users.router)
+    app.include_router(portals.router)
+    app.include_router(ip_cameras.router)
+    app.include_router(roles.router)
     app.include_router(access.router)
     app.include_router(reports.router)
     app.include_router(search.router)
