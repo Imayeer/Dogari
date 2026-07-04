@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from dogari.access import camera_watcher as camera_watcher_module
 from dogari.access import person_search as person_search_module
 from dogari.access import security_monitor as security_monitor_module
+from dogari.storage.portals_repository import create_portal
 from dogari.storage.users_repository import create_user
 
 
@@ -33,6 +34,7 @@ def _wait_until(predicate, timeout: float = 2.0) -> None:
 
 
 def test_search_route_full_lifecycle(temp_settings, monkeypatch):
+    portal = create_portal(name="Portail recherche", camera_source="0")
     embedding = np.zeros(128)
     create_user(full_name="Yara", face_embedding=embedding)
 
@@ -48,7 +50,7 @@ def test_search_route_full_lifecycle(temp_settings, monkeypatch):
     from dogari.web.app import app
 
     with TestClient(app) as client:
-        response = client.post("/api/search/start", json={"full_name": "Yara", "camera": "primary"})
+        response = client.post("/api/search/start", json={"full_name": "Yara", "portal_id": portal.id})
         assert response.status_code == 201
         search_id = response.json()["search_id"]
 
@@ -67,16 +69,31 @@ def test_search_route_full_lifecycle(temp_settings, monkeypatch):
         assert response.json() == {"stopped": True}
 
 
-def test_search_route_returns_404_for_unknown_user(temp_settings):
+def test_search_route_returns_400_without_camera_selector(temp_settings):
     from dogari.web.app import app
 
     with TestClient(app) as client:
         response = client.post("/api/search/start", json={"full_name": "Personne Inconnue"})
 
+    assert response.status_code == 400
+
+
+def test_search_route_returns_404_for_unknown_user(temp_settings):
+    portal = create_portal(name="Portail recherche 2", camera_source="0")
+
+    from dogari.web.app import app
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/search/start", json={"full_name": "Personne Inconnue", "portal_id": portal.id}
+        )
+
     assert response.status_code == 404
 
 
 def test_monitoring_route_full_lifecycle(temp_settings, monkeypatch):
+    portal = create_portal(name="Portail surveillance", camera_source="0")
+
     monkeypatch.setattr(camera_watcher_module, "Camera", lambda source=None: _fake_camera())
     monkeypatch.setattr(security_monitor_module, "detect_faces", lambda frame: [object()] * 7)
     monkeypatch.setattr(
@@ -88,7 +105,7 @@ def test_monitoring_route_full_lifecycle(temp_settings, monkeypatch):
     from dogari.web.app import app
 
     with TestClient(app) as client:
-        response = client.post("/api/monitoring/start", json={"camera": "primary"})
+        response = client.post("/api/monitoring/start", json={"portal_id": portal.id})
         assert response.status_code == 201
         monitor_id = response.json()["monitor_id"]
 

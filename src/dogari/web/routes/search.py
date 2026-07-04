@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -13,9 +11,9 @@ from dogari.access.person_search import (
     start_search,
     stop_search,
 )
-from dogari.core.config import settings
 from dogari.core.exceptions import DogariError
 from dogari.storage.sightings_repository import get_sightings
+from dogari.web.camera_resolution import resolve_camera_source
 from dogari.web.schemas import PersonSearchOut, PersonSightingOut
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -23,20 +21,14 @@ router = APIRouter(prefix="/api/search", tags=["search"])
 
 class StartSearchIn(BaseModel):
     full_name: str
-    camera: Literal["primary", "secondary"] = "primary"
+    portal_id: int | None = None
+    ip_camera_id: int | None = None
 
 
 @router.post("/start", response_model=PersonSearchOut, status_code=201)
 def start(payload: StartSearchIn) -> PersonSearchOut:
-    """Démarre une surveillance continue pour retrouver un utilisateur nommé."""
-    camera_source = settings.camera_source
-    if payload.camera == "secondary":
-        if settings.secondary_camera_source is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Aucune caméra secondaire configurée (DOGARI_SECONDARY_CAMERA_SOURCE).",
-            )
-        camera_source = settings.secondary_camera_source
+    """Démarre une surveillance continue pour retrouver un utilisateur nommé (sur un portail ou une caméra IP)."""
+    camera_source = resolve_camera_source(payload.portal_id, payload.ip_camera_id)
 
     try:
         search = start_search(payload.full_name, camera_source)
