@@ -36,11 +36,18 @@ def _get_recognizer():
 
 
 def generate_embedding(frame: np.ndarray, face: FaceDetection) -> np.ndarray:
-    """Génère l'embedding (vecteur 128-D) d'un visage détecté dans une image."""
+    """Génère l'embedding (vecteur 128-D, normalisé L2) d'un visage détecté dans une image.
+
+    `cv2.FaceRecognizerSF.feature()` ne garantit pas la norme du vecteur brut
+    retourné (elle n'est normalisée qu'en interne par `match()`) : on la
+    normalise donc explicitement ici pour que la distance euclidienne calculée
+    dans `euclidean_distance` reste bornée dans [0, 2] comme attendu par
+    `similarity_score` et par le seuil `DOGARI_RECOGNITION_TOLERANCE`.
+    """
     recognizer = _get_recognizer()
     aligned_face = recognizer.alignCrop(frame, face)
-    feature = recognizer.feature(aligned_face)
-    return feature.flatten()
+    feature = recognizer.feature(aligned_face).flatten()
+    return feature / np.linalg.norm(feature)
 
 
 def euclidean_distance(embedding_a: np.ndarray, embedding_b: np.ndarray) -> float:
