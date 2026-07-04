@@ -48,7 +48,7 @@ def list_users() -> list[UserOut]:
 @router.post("", response_model=UserOut, status_code=201)
 async def add_user(
     full_name: str = Form(...),
-    role: str | None = Form(None),
+    role_id: int | None = Form(None),
     face_image: UploadFile = File(...),
 ) -> UserOut:
     """Ajoute un utilisateur autorisé à partir d'une image de référence."""
@@ -69,7 +69,7 @@ async def add_user(
 
     user = create_user(
         full_name=full_name,
-        role=role,
+        role_id=role_id,
         face_image_path=str(image_path),
         face_embedding=embedding,
     )

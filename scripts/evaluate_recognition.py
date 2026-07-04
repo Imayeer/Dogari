@@ -171,7 +171,8 @@ def load_gallery(gallery_dir: Path) -> list[User]:
             User(
                 id=index,
                 full_name=person_dir.name,
-                role=None,
+                role_id=None,
+                role_name=None,
                 status="active",
                 face_image_path=None,
                 face_embedding=encode_embedding(average_embedding),

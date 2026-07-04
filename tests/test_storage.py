@@ -7,16 +7,18 @@ import pytest
 
 from dogari.core.constants import AccessStatus, UserStatus
 from dogari.core.exceptions import UserNotFoundError
-from dogari.storage import access_logs_repository, users_repository
+from dogari.storage import access_logs_repository, roles_repository, users_repository
 
 
 def test_create_and_get_user(temp_settings):
-    user = users_repository.create_user(full_name="Alice Dupont", role="Étudiante")
+    role = roles_repository.create_role(name="Étudiante")
+    user = users_repository.create_user(full_name="Alice Dupont", role_id=role.id)
 
     fetched = users_repository.get_user_by_id(user.id)
 
     assert fetched.full_name == "Alice Dupont"
-    assert fetched.role == "Étudiante"
+    assert fetched.role_id == role.id
+    assert fetched.role_name == "Étudiante"
     assert fetched.status == UserStatus.ACTIVE.value
     assert fetched.is_active is True
 
@@ -50,12 +52,14 @@ def test_get_active_users_with_embeddings(temp_settings):
 
 
 def test_update_user(temp_settings):
-    user = users_repository.create_user(full_name="Frank", role="Visiteur")
+    visiteur = roles_repository.create_role(name="Visiteur")
+    employe = roles_repository.create_role(name="Employé")
+    user = users_repository.create_user(full_name="Frank", role_id=visiteur.id)
 
-    updated = users_repository.update_user(user.id, role="Employé")
+    updated = users_repository.update_user(user.id, role_id=employe.id)
 
     assert updated.full_name == "Frank"
-    assert updated.role == "Employé"
+    assert updated.role_name == "Employé"
 
 
 def test_delete_user(temp_settings):

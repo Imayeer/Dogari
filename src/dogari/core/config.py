@@ -43,15 +43,20 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _env_camera_source(name: str, default: int | str | None) -> int | str | None:
-    """Lit une source caméra : un index numérique (webcam) ou une URL (caméra IP)."""
-    value = os.environ.get(name)
-    if value is None:
-        return default
+def parse_camera_source(value: str) -> int | str:
+    """Convertit une source caméra stockée en texte (DB, env) : index numérique ou URL."""
     try:
         return int(value)
     except ValueError:
         return value
+
+
+def _env_camera_source(name: str, default: int | str | None) -> int | str | None:
+    """Lit une source caméra depuis une variable d'environnement (index numérique ou URL)."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return parse_camera_source(value)
 
 
 @dataclass(frozen=True)

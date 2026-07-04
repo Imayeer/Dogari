@@ -14,7 +14,8 @@ from dogari.storage.models import AccessLog, PersonSighting, SecurityEvent, User
 class UserOut(BaseModel):
     id: int
     full_name: str
-    role: str | None
+    role_id: int | None
+    role_name: str | None
     status: str
     face_image_path: str | None
     created_at: str | None
@@ -24,7 +25,8 @@ class UserOut(BaseModel):
         return cls(
             id=user.id,
             full_name=user.full_name,
-            role=user.role,
+            role_id=user.role_id,
+            role_name=user.role_name,
             status=user.status,
             face_image_path=user.face_image_path,
             created_at=user.created_at,

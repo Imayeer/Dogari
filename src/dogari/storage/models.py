@@ -28,7 +28,8 @@ class User:
 
     id: int | None
     full_name: str
-    role: str | None
+    role_id: int | None
+    role_name: str | None
     status: str
     face_image_path: str | None
     face_embedding: bytes | None
@@ -47,7 +48,8 @@ class User:
         return cls(
             id=row["id"],
             full_name=row["full_name"],
-            role=row["role"],
+            role_id=row["role_id"],
+            role_name=row["role_name"],
             status=row["status"],
             face_image_path=row["face_image_path"],
             face_embedding=row["face_embedding"],
@@ -131,4 +133,96 @@ class SecurityEvent:
             message=row["message"],
             camera_source=row["camera_source"],
             created_at=row["created_at"],
+        )
+
+
+@dataclass
+class Portal:
+    """Représente un point d'accès physique (porte) contrôlé par une caméra dédiée."""
+
+    id: int | None
+    name: str
+    camera_source: str
+    camera_kind: str
+    door_type: str
+    gpio_relay_pin: int | None
+    status: str
+    created_at: str | None
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == UserStatus.ACTIVE.value
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "Portal":
+        return cls(
+            id=row["id"],
+            name=row["name"],
+            camera_source=row["camera_source"],
+            camera_kind=row["camera_kind"],
+            door_type=row["door_type"],
+            gpio_relay_pin=row["gpio_relay_pin"],
+            status=row["status"],
+            created_at=row["created_at"],
+        )
+
+
+@dataclass
+class IPCamera:
+    """Représente une caméra IP de surveillance (pas un point d'accès : pas de porte)."""
+
+    id: int | None
+    name: str
+    source: str
+    status: str
+    created_at: str | None
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "IPCamera":
+        return cls(
+            id=row["id"],
+            name=row["name"],
+            source=row["source"],
+            status=row["status"],
+            created_at=row["created_at"],
+        )
+
+
+@dataclass
+class Role:
+    """Représente un rôle d'accès (regroupe les portails autorisés et leurs horaires)."""
+
+    id: int | None
+    name: str
+    created_at: str | None
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "Role":
+        return cls(id=row["id"], name=row["name"], created_at=row["created_at"])
+
+
+@dataclass
+class RolePortalSchedule:
+    """Représente une plage horaire, pour un jour de semaine donné, où un rôle a accès à un portail.
+
+    `weekday` suit la convention `datetime.weekday()` : 0 = lundi ... 6 = dimanche.
+    `start_time`/`end_time` sont au format "HH:MM".
+    """
+
+    id: int | None
+    role_id: int
+    portal_id: int
+    weekday: int
+    start_time: str
+    end_time: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "RolePortalSchedule":
+        return cls(
+            id=row["id"],
+            role_id=row["role_id"],
+            portal_id=row["portal_id"],
+            weekday=row["weekday"],
+            start_time=row["start_time"],
+            end_time=row["end_time"],
         )

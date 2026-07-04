@@ -12,7 +12,8 @@ def _gallery_user(user_id: int, name: str, embedding: np.ndarray) -> User:
     return User(
         id=user_id,
         full_name=name,
-        role=None,
+        role_id=None,
+        role_name=None,
         status="active",
         face_image_path=None,
         face_embedding=encode_embedding(embedding),

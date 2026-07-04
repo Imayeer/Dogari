@@ -12,7 +12,8 @@ def _make_user(user_id: int, embedding: np.ndarray) -> User:
     return User(
         id=user_id,
         full_name=f"User {user_id}",
-        role=None,
+        role_id=None,
+        role_name=None,
         status="active",
         face_image_path=None,
         face_embedding=embedding.astype(np.float64).tobytes(),
