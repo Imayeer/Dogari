@@ -23,6 +23,15 @@ def add_schedule(role_id: int, portal_id: int, weekday: int, start_time: str, en
     return RolePortalSchedule.from_row(row)
 
 
+def get_all_schedules() -> list[RolePortalSchedule]:
+    """Retourne tous les horaires d'accès, tous rôles et portails confondus (pour l'affichage)."""
+    with db_session() as connection:
+        rows = connection.execute(
+            "SELECT * FROM role_portal_schedules ORDER BY role_id, portal_id, weekday, start_time"
+        ).fetchall()
+    return [RolePortalSchedule.from_row(row) for row in rows]
+
+
 def get_schedules_for_role(role_id: int) -> list[RolePortalSchedule]:
     """Retourne tous les horaires d'accès configurés pour un rôle (tous portails confondus)."""
     with db_session() as connection:

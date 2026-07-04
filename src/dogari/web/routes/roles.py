@@ -12,6 +12,7 @@ from dogari.storage.role_schedules_repository import (
     add_schedule,
     delete_schedule,
     delete_schedules_for_role_and_portal,
+    get_all_schedules,
     get_schedules_for_role,
 )
 from dogari.storage.roles_repository import create_role, delete_role, get_all_roles, get_role_by_id
@@ -55,6 +56,12 @@ def remove_role(role_id: int) -> None:
         delete_role(role_id)
     except DogariError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/schedules", response_model=list[RolePortalScheduleOut])
+def list_all_schedules() -> list[RolePortalScheduleOut]:
+    """Liste tous les horaires d'accès, tous rôles et portails confondus."""
+    return [RolePortalScheduleOut.from_schedule(schedule) for schedule in get_all_schedules()]
 
 
 @router.get("/{role_id}/schedules", response_model=list[RolePortalScheduleOut])
