@@ -65,6 +65,20 @@
             <ul id="anomalies-list" class="anomalies-list"></ul>
         </section>
 
+        <section id="reports-section">
+            <h2>Rapport de synthèse</h2>
+            <form id="report-form">
+                <label>
+                    Période (jours)
+                    <input type="number" name="days" value="7" min="1" max="365" />
+                </label>
+                <button type="submit">Générer</button>
+                <a id="report-csv-link" href="/api/reports/export.csv?days=7">Exporter CSV</a>
+                <a id="report-txt-link" href="/api/reports/export.txt?days=7">Exporter TXT</a>
+            </form>
+            <div id="report-result"></div>
+        </section>
+
         <section id="logs-section">
             <h2>Derniers accès</h2>
             <table>

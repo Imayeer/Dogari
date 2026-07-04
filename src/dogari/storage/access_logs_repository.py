@@ -38,6 +38,16 @@ def get_recent_logs(limit: int = 50) -> list[AccessLog]:
     return [AccessLog.from_row(row) for row in rows]
 
 
+def get_logs_between(start: str, end: str) -> list[AccessLog]:
+    """Retourne les tentatives d'accès entre deux horodatages (inclus), triées chronologiquement."""
+    with db_session() as connection:
+        rows = connection.execute(
+            "SELECT * FROM access_logs WHERE created_at BETWEEN ? AND ? ORDER BY created_at ASC, id ASC",
+            (start, end),
+        ).fetchall()
+    return [AccessLog.from_row(row) for row in rows]
+
+
 def get_logs_for_user(user_id: int, limit: int = 50) -> list[AccessLog]:
     """Retourne l'historique d'accès d'un utilisateur donné."""
     with db_session() as connection:

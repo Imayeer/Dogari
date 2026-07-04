@@ -13,6 +13,7 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 - Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte.
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
 - Détection d'anomalies par règles (refus répétés, accès hors horaires, pics de fréquence).
+- Génération de rapports de synthèse (quotidien/hebdomadaire), exportables en CSV/texte.
 - Interface web locale (FastAPI) pour gérer les utilisateurs, lancer une reconnaissance et consulter les logs.
 
 ## Installation
@@ -92,7 +93,8 @@ dogari/
 ├── models/                 # Modèles ONNX YuNet/SFace (non versionnés, voir download_models.py)
 ├── scripts/
 │   ├── download_models.py       # Télécharge les modèles YuNet/SFace
-│   └── evaluate_recognition.py  # Évaluation de la précision (accuracy/FAR/FRR)
+│   ├── evaluate_recognition.py  # Évaluation de la précision (accuracy/FAR/FRR)
+│   └── generate_report.py       # Génère un rapport de synthèse (console/fichier/cron)
 ├── src/dogari/
 │   ├── core/                # Configuration, constantes, exceptions
 │   ├── vision/               # Caméra, détection faciale, embeddings, reconnaissance
@@ -142,6 +144,27 @@ affichées sur le tableau de bord :
 Ce sont des règles, pas un modèle appris (aucune donnée d'entraînement
 disponible) : ajustez les seuils via les variables `DOGARI_ANOMALY_*`
 ci-dessus selon le contexte de déploiement.
+
+## Rapports de synthèse
+
+`src/dogari/access/reports.py` agrège l'historique des accès sur une période
+(tentatives par statut, utilisateurs distincts, répartition quotidienne,
+anomalies incluses). Disponible de trois façons :
+
+- Sur le tableau de bord, section "Rapport de synthèse" (choisissez le nombre de jours).
+- Via l'API : `GET /api/reports/summary?days=7` (JSON), `GET /api/reports/export.csv?days=7`,
+  `GET /api/reports/export.txt?days=7`.
+- En ligne de commande, pour un vrai rapport *automatique* planifié (cron) :
+
+  ```bash
+  python scripts/generate_report.py --days 7 --output rapport.txt --csv rapport.csv
+  ```
+
+  Exemple de tâche cron pour un rapport hebdomadaire chaque lundi à 8h :
+
+  ```
+  0 8 * * 1 cd /chemin/vers/dogari && .venv/bin/python scripts/generate_report.py --days 7 --output data/logs/rapport_hebdo.txt
+  ```
 
 ## Évaluer la précision de la reconnaissance faciale
 

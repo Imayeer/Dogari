@@ -6,6 +6,10 @@ const recognizeBtn = document.getElementById("recognize-btn");
 const recognizeResult = document.getElementById("recognize-result");
 const addUserForm = document.getElementById("add-user-form");
 const addUserResult = document.getElementById("add-user-result");
+const reportForm = document.getElementById("report-form");
+const reportResult = document.getElementById("report-result");
+const reportCsvLink = document.getElementById("report-csv-link");
+const reportTxtLink = document.getElementById("report-txt-link");
 
 function formatDate(value) {
     return value ? value.replace("T", " ") : "-";
@@ -112,6 +116,28 @@ addUserForm.addEventListener("submit", async (event) => {
         addUserResult.textContent = `Erreur réseau : ${err}`;
     } finally {
         await refreshAll();
+    }
+});
+
+reportForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const days = new FormData(reportForm).get("days") || 7;
+    reportCsvLink.href = `/api/reports/export.csv?days=${days}`;
+    reportTxtLink.href = `/api/reports/export.txt?days=${days}`;
+    reportResult.textContent = "Génération en cours...";
+    try {
+        const response = await fetch(`/api/reports/summary?days=${days}`);
+        const data = await response.json();
+        const usersLine = data.unique_users.length ? data.unique_users.join(", ") : "-";
+        reportResult.innerHTML = `
+            <p><strong>Période :</strong> ${data.period_start} au ${data.period_end}</p>
+            <p><strong>Tentatives :</strong> ${data.total_attempts}
+               (autorisées : ${data.granted}, refusées : ${data.denied}, erreurs : ${data.error})</p>
+            <p><strong>Utilisateurs distincts :</strong> ${usersLine}</p>
+            <p><strong>Anomalies :</strong> ${data.anomalies.length}</p>
+        `;
+    } catch (err) {
+        reportResult.textContent = `Erreur réseau : ${err}`;
     }
 });
 

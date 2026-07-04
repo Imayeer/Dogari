@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from dogari.access.anomaly import AnomalyEvent
+from dogari.access.reports import AccessReport, DailyStats
 from dogari.storage.models import AccessLog, User
 
 
@@ -71,6 +72,44 @@ class AnomalyEventOut(BaseModel):
     @classmethod
     def from_event(cls, event: AnomalyEvent) -> "AnomalyEventOut":
         return cls(kind=event.kind, severity=event.severity, message=event.message, log_ids=event.log_ids)
+
+
+class DailyStatsOut(BaseModel):
+    date: str
+    total: int
+    granted: int
+    denied: int
+    error: int
+
+    @classmethod
+    def from_stats(cls, stats: DailyStats) -> "DailyStatsOut":
+        return cls(date=stats.date, total=stats.total, granted=stats.granted, denied=stats.denied, error=stats.error)
+
+
+class AccessReportOut(BaseModel):
+    period_start: str
+    period_end: str
+    total_attempts: int
+    granted: int
+    denied: int
+    error: int
+    unique_users: list[str]
+    daily_breakdown: list[DailyStatsOut]
+    anomalies: list[AnomalyEventOut]
+
+    @classmethod
+    def from_report(cls, report: AccessReport) -> "AccessReportOut":
+        return cls(
+            period_start=report.period_start,
+            period_end=report.period_end,
+            total_attempts=report.total_attempts,
+            granted=report.granted,
+            denied=report.denied,
+            error=report.error,
+            unique_users=report.unique_users,
+            daily_breakdown=[DailyStatsOut.from_stats(day) for day in report.daily_breakdown],
+            anomalies=[AnomalyEventOut.from_event(event) for event in report.anomalies],
+        )
 
 
 class SystemStatusOut(BaseModel):
