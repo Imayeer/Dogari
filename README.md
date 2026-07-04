@@ -7,7 +7,7 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 ## Fonctionnalités du MVP
 
 - Capture vidéo depuis une webcam/caméra USB (OpenCV).
-- Détection et reconnaissance faciale (`face-recognition`).
+- Détection et reconnaissance faciale (YuNet + SFace, modèles ONNX via `cv2.dnn`).
 - Enregistrement des utilisateurs autorisés (nom, rôle, image de référence, embedding facial).
 - Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte.
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
@@ -19,13 +19,28 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 python -m venv .venv
 source .venv/bin/activate  # Windows : .venv\Scripts\activate
 pip install -r requirements.txt
+python scripts/download_models.py
 ```
 
-> `face-recognition` dépend de `dlib`, qui nécessite un compilateur C++ et `cmake`
-> installés sur le système pour se compiler depuis les sources sur certaines
-> plateformes (notamment Raspberry Pi). Voir la documentation de
-> [face-recognition](https://github.com/ageitgey/face_recognition) en cas de
-> difficulté d'installation.
+`scripts/download_models.py` récupère les deux modèles ONNX nécessaires à la
+reconnaissance faciale et les place dans `models/` :
+
+- `face_detection_yunet_2023mar.onnx` (détection de visage, ~340 Ko)
+- `face_recognition_sface_2021dec.onnx` (embedding facial, ~36 Mo)
+
+Ils ne sont pas versionnés dans le dépôt (fichiers binaires volumineux, voir
+`.gitignore`). Si le téléchargement échoue (réseau d'entreprise, pare-feu...),
+téléchargez-les manuellement depuis
+[opencv/opencv_zoo](https://github.com/opencv/opencv_zoo/tree/main/models)
+(dossiers `face_detection_yunet` et `face_recognition_sface`) et placez-les
+dans `models/` sous les noms ci-dessus, ou pointez `DOGARI_YUNET_MODEL_PATH` /
+`DOGARI_SFACE_MODEL_PATH` vers un autre emplacement.
+
+> Contrairement à `face-recognition`/`dlib` (envisagé initialement), YuNet et
+> SFace ne nécessitent aucune compilation : ce sont des modèles ONNX exécutés
+> directement par `opencv-python`, ce qui évite un point de blocage classique
+> au déploiement sur Raspberry Pi (compilation de `dlib` longue et gourmande
+> en mémoire, parfois indisponible en wheel précompilé sur ARM).
 
 ## Lancement
 
@@ -49,7 +64,9 @@ Le comportement du système peut être ajusté via des variables d'environnement
 |---|---|---|
 | `DOGARI_DATA_DIR` | Dossier de données (base SQLite, images, logs) | `data/` |
 | `DOGARI_CAMERA_INDEX` | Index de la caméra OpenCV | `0` |
-| `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance pour la reconnaissance faciale (plus petit = plus strict) | `0.6` |
+| `DOGARI_YUNET_MODEL_PATH` | Chemin du modèle de détection YuNet (`.onnx`) | `models/face_detection_yunet_2023mar.onnx` |
+| `DOGARI_SFACE_MODEL_PATH` | Chemin du modèle de reconnaissance SFace (`.onnx`) | `models/face_recognition_sface_2021dec.onnx` |
+| `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance L2 pour la reconnaissance faciale (plus petit = plus strict) | `1.128` |
 | `DOGARI_DOOR_HOLD_SECONDS` | Durée d'ouverture simulée de la porte | `5.0` |
 | `DOGARI_USE_GPIO` | Active le contrôle GPIO réel (Raspberry Pi, Phase 7) | `false` |
 | `DOGARI_GPIO_RELAY_PIN` | Broche GPIO (BCM) du relais de la gâche | `17` |
@@ -63,7 +80,9 @@ dogari/
 ├── requirements.txt
 ├── pyproject.toml
 ├── data/                   # Base SQLite, images de visages, logs (non versionné)
+├── models/                 # Modèles ONNX YuNet/SFace (non versionnés, voir download_models.py)
 ├── scripts/
+│   ├── download_models.py       # Télécharge les modèles YuNet/SFace
 │   └── evaluate_recognition.py  # Évaluation de la précision (accuracy/FAR/FRR)
 ├── src/dogari/
 │   ├── core/                # Configuration, constantes, exceptions

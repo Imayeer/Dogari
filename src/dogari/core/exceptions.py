@@ -22,6 +22,10 @@ class MultipleFacesDetectedError(DogariError):
     """Plusieurs visages ont été détectés alors qu'un seul était attendu."""
 
 
+class ModelLoadError(DogariError):
+    """Un modèle ONNX (détection YuNet ou reconnaissance SFace) est introuvable ou invalide."""
+
+
 # --- Storage ------------------------------------------------------------
 
 

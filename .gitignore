@@ -26,6 +26,10 @@ data/faces/*
 data/logs/*
 !data/logs/.gitkeep
 
+# Modèles ONNX (volumineux, téléchargés via scripts/download_models.py)
+models/*.onnx
+!models/.gitkeep
+
 # Environnement / secrets
 .env
 .env.*

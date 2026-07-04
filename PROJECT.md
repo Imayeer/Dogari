@@ -132,6 +132,9 @@ Contient l'interface web locale (`app.py`, `templates/`, `static/`) et les route
 - Langage : Python 3.11+
 - Vision par ordinateur : OpenCV
 - Reconnaissance faciale : face-recognition, DeepFace ou InsightFace selon faisabilité
+  (implémenté avec YuNet + SFace, modèles ONNX exécutés via `cv2.dnn` — retenu
+  au lieu de `face-recognition`/dlib pour éviter sa compilation, coûteuse et peu
+  fiable sur Raspberry Pi ; voir README pour le détail des modèles)
 - Base de données : SQLite
 - Interface web : FastAPI
 - Tests : Pytest

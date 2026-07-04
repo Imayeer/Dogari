@@ -59,9 +59,20 @@ class Settings:
     # Caméra
     camera_source: int | str = field(default_factory=lambda: _env_int("DOGARI_CAMERA_INDEX", 0))
 
-    # Reconnaissance faciale
+    # Reconnaissance faciale (OpenCV YuNet + SFace, voir vision/detector.py et vision/embeddings.py)
+    yunet_model_path: Path = field(
+        default_factory=lambda: _env_path(
+            "DOGARI_YUNET_MODEL_PATH", BASE_DIR / "models" / "face_detection_yunet_2023mar.onnx"
+        )
+    )
+    sface_model_path: Path = field(
+        default_factory=lambda: _env_path(
+            "DOGARI_SFACE_MODEL_PATH", BASE_DIR / "models" / "face_recognition_sface_2021dec.onnx"
+        )
+    )
+    # Seuil de distance L2 recommandé par OpenCV Zoo pour les embeddings SFace (128-D, normalisés)
     recognition_tolerance: float = field(
-        default_factory=lambda: _env_float("DOGARI_RECOGNITION_TOLERANCE", 0.6)
+        default_factory=lambda: _env_float("DOGARI_RECOGNITION_TOLERANCE", 1.128)
     )
 
     # Contrôle de porte
