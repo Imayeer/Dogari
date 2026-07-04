@@ -12,6 +12,15 @@ const reportCsvLink = document.getElementById("report-csv-link");
 const reportTxtLink = document.getElementById("report-txt-link");
 const cameraSelect = document.getElementById("camera-select");
 const cameraSecondaryOption = document.getElementById("camera-secondary-option");
+const searchForm = document.getElementById("search-form");
+const searchResult = document.getElementById("search-result");
+const searchTableBody = document.getElementById("search-table-body");
+const searchCameraSecondaryOption = document.getElementById("search-camera-secondary-option");
+const monitoringForm = document.getElementById("monitoring-form");
+const monitoringResult = document.getElementById("monitoring-result");
+const monitoringTableBody = document.getElementById("monitoring-table-body");
+const monitoringCameraSecondaryOption = document.getElementById("monitoring-camera-secondary-option");
+const securityEventsList = document.getElementById("security-events-list");
 
 function formatDate(value) {
     return value ? value.replace("T", " ") : "-";
@@ -29,6 +38,8 @@ async function refreshStatus() {
         <div class="card">Caméra secondaire<strong>${data.secondary_camera_source ?? "non configurée"}</strong></div>
     `;
     cameraSecondaryOption.disabled = !data.secondary_camera_source;
+    searchCameraSecondaryOption.disabled = !data.secondary_camera_source;
+    monitoringCameraSecondaryOption.disabled = !data.secondary_camera_source;
 }
 
 async function refreshUsers() {
@@ -80,8 +91,63 @@ async function refreshAnomalies() {
         : "<li class=\"anomaly-none\">Aucune anomalie détectée.</li>";
 }
 
+async function refreshSearches() {
+    const response = await fetch("/api/search");
+    const searches = await response.json();
+    searchTableBody.innerHTML = searches
+        .map(
+            (search) => `
+        <tr>
+            <td>${search.full_name}</td>
+            <td>${search.camera_source}</td>
+            <td>${formatDate(search.started_at)}</td>
+            <td>${search.sightings_count}</td>
+            <td>${search.last_error ? `Erreur : ${search.last_error}` : "En cours"}</td>
+            <td><button data-action="stop-search" data-id="${search.search_id}">Arrêter</button></td>
+        </tr>`
+        )
+        .join("");
+}
+
+async function refreshMonitors() {
+    const response = await fetch("/api/monitoring");
+    const monitors = await response.json();
+    monitoringTableBody.innerHTML = monitors
+        .map(
+            (monitor) => `
+        <tr>
+            <td>${monitor.camera_source}</td>
+            <td>${formatDate(monitor.started_at)}</td>
+            <td>${monitor.last_error ? `Erreur : ${monitor.last_error}` : "En cours"}</td>
+            <td><button data-action="stop-monitor" data-id="${monitor.monitor_id}">Arrêter</button></td>
+        </tr>`
+        )
+        .join("");
+}
+
+async function refreshSecurityEvents() {
+    const response = await fetch("/api/monitoring/events?limit=25");
+    const events = await response.json();
+    securityEventsList.innerHTML = events.length
+        ? events
+              .map(
+                  (event) =>
+                      `<li class="anomaly-${event.severity}">${formatDate(event.created_at)} — ${event.message}</li>`
+              )
+              .join("")
+        : "<li class=\"anomaly-none\">Aucun événement de sécurité détecté.</li>";
+}
+
 async function refreshAll() {
-    await Promise.all([refreshStatus(), refreshUsers(), refreshLogs(), refreshAnomalies()]);
+    await Promise.all([
+        refreshStatus(),
+        refreshUsers(),
+        refreshLogs(),
+        refreshAnomalies(),
+        refreshSearches(),
+        refreshMonitors(),
+        refreshSecurityEvents(),
+    ]);
 }
 
 recognizeBtn.addEventListener("click", async () => {
@@ -144,6 +210,63 @@ reportForm.addEventListener("submit", async (event) => {
     } catch (err) {
         reportResult.textContent = `Erreur réseau : ${err}`;
     }
+});
+
+searchForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(searchForm);
+    searchResult.textContent = "Démarrage de la recherche...";
+    try {
+        const response = await fetch("/api/search/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ full_name: formData.get("full_name"), camera: formData.get("camera") }),
+        });
+        const data = await response.json();
+        searchResult.textContent = response.ok
+            ? `Recherche démarrée pour "${data.full_name}".`
+            : `Erreur : ${data.detail ?? "inconnue"}`;
+        if (response.ok) searchForm.reset();
+    } catch (err) {
+        searchResult.textContent = `Erreur réseau : ${err}`;
+    } finally {
+        await refreshSearches();
+    }
+});
+
+monitoringForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(monitoringForm);
+    monitoringResult.textContent = "Démarrage de la surveillance...";
+    try {
+        const response = await fetch("/api/monitoring/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ camera: formData.get("camera") }),
+        });
+        const data = await response.json();
+        monitoringResult.textContent = response.ok
+            ? `Surveillance démarrée sur la caméra "${data.camera_source}".`
+            : `Erreur : ${data.detail ?? "inconnue"}`;
+    } catch (err) {
+        monitoringResult.textContent = `Erreur réseau : ${err}`;
+    } finally {
+        await refreshMonitors();
+    }
+});
+
+searchTableBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action='stop-search']");
+    if (!button) return;
+    await fetch(`/api/search/${button.dataset.id}/stop`, { method: "POST" });
+    await refreshSearches();
+});
+
+monitoringTableBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action='stop-monitor']");
+    if (!button) return;
+    await fetch(`/api/monitoring/${button.dataset.id}/stop`, { method: "POST" });
+    await refreshMonitors();
 });
 
 usersTableBody.addEventListener("click", async (event) => {

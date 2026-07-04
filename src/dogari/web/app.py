@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from dogari import __version__
 from dogari.core.config import settings
 from dogari.storage.database import initialize_database
-from dogari.web.routes import access, reports, status, users
+from dogari.web.routes import access, monitoring, reports, search, status, users
 
 WEB_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
@@ -33,6 +33,8 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(access.router)
     app.include_router(reports.router)
+    app.include_router(search.router)
+    app.include_router(monitoring.router)
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request) -> HTMLResponse:

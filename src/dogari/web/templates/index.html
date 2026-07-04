@@ -31,6 +31,74 @@
             <div id="recognize-result"></div>
         </section>
 
+        <section id="search-section">
+            <h2>Rechercher une personne</h2>
+            <p class="notice">
+                Ne fonctionne que pour un utilisateur déjà enregistré (visage connu du système).
+            </p>
+            <form id="search-form">
+                <label>
+                    Nom complet
+                    <input type="text" name="full_name" required />
+                </label>
+                <label>
+                    Caméra
+                    <select name="camera" id="search-camera-select">
+                        <option value="primary">Principale</option>
+                        <option value="secondary" id="search-camera-secondary-option" disabled>Secondaire</option>
+                    </select>
+                </label>
+                <button type="submit">Démarrer la recherche</button>
+            </form>
+            <div id="search-result"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom recherché</th>
+                        <th>Caméra</th>
+                        <th>Démarrée le</th>
+                        <th>Observations</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="search-table-body"></tbody>
+            </table>
+        </section>
+
+        <section id="monitoring-section">
+            <h2>Surveillance sécurité (foule, armes)</h2>
+            <p class="notice">
+                La détection de foule est fiable. La détection d'armes est <strong>expérimentale</strong>,
+                désactivée par défaut, et ne doit jamais être considérée comme une garantie de sécurité
+                (voir le README).
+            </p>
+            <form id="monitoring-form">
+                <label>
+                    Caméra
+                    <select name="camera" id="monitoring-camera-select">
+                        <option value="primary">Principale</option>
+                        <option value="secondary" id="monitoring-camera-secondary-option" disabled>Secondaire</option>
+                    </select>
+                </label>
+                <button type="submit">Démarrer la surveillance</button>
+            </form>
+            <div id="monitoring-result"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Caméra</th>
+                        <th>Démarrée le</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="monitoring-table-body"></tbody>
+            </table>
+            <h3>Événements de sécurité</h3>
+            <ul id="security-events-list" class="anomalies-list"></ul>
+        </section>
+
         <section id="add-user-section">
             <h2>Ajouter un utilisateur</h2>
             <form id="add-user-form">

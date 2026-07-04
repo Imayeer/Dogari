@@ -5,8 +5,10 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from dogari.access.anomaly import AnomalyEvent
+from dogari.access.person_search import PersonSearch
 from dogari.access.reports import AccessReport, DailyStats
-from dogari.storage.models import AccessLog, User
+from dogari.access.security_monitor import SecurityMonitor
+from dogari.storage.models import AccessLog, PersonSighting, SecurityEvent, User
 
 
 class UserOut(BaseModel):
@@ -109,6 +111,88 @@ class AccessReportOut(BaseModel):
             unique_users=report.unique_users,
             daily_breakdown=[DailyStatsOut.from_stats(day) for day in report.daily_breakdown],
             anomalies=[AnomalyEventOut.from_event(event) for event in report.anomalies],
+        )
+
+
+class PersonSearchOut(BaseModel):
+    search_id: str
+    full_name: str
+    camera_source: str
+    started_at: str
+    sightings_count: int
+    is_running: bool
+    last_error: str | None
+
+    @classmethod
+    def from_search(cls, search: PersonSearch) -> "PersonSearchOut":
+        return cls(
+            search_id=search.search_id,
+            full_name=search.full_name,
+            camera_source=str(search.camera_source),
+            started_at=search.started_at,
+            sightings_count=search.sightings_count,
+            is_running=search.is_running,
+            last_error=search.last_error,
+        )
+
+
+class PersonSightingOut(BaseModel):
+    id: int
+    search_id: str
+    user_id: int | None
+    full_name: str | None
+    camera_source: str | None
+    similarity_score: float | None
+    created_at: str | None
+
+    @classmethod
+    def from_sighting(cls, sighting: PersonSighting) -> "PersonSightingOut":
+        return cls(
+            id=sighting.id,
+            search_id=sighting.search_id,
+            user_id=sighting.user_id,
+            full_name=sighting.full_name,
+            camera_source=sighting.camera_source,
+            similarity_score=sighting.similarity_score,
+            created_at=sighting.created_at,
+        )
+
+
+class SecurityMonitorOut(BaseModel):
+    monitor_id: str
+    camera_source: str
+    started_at: str
+    is_running: bool
+    last_error: str | None
+
+    @classmethod
+    def from_monitor(cls, monitor: SecurityMonitor) -> "SecurityMonitorOut":
+        return cls(
+            monitor_id=monitor.monitor_id,
+            camera_source=str(monitor.camera_source),
+            started_at=monitor.started_at,
+            is_running=monitor.is_running,
+            last_error=monitor.last_error,
+        )
+
+
+class SecurityEventOut(BaseModel):
+    id: int
+    kind: str
+    severity: str
+    message: str | None
+    camera_source: str | None
+    created_at: str | None
+
+    @classmethod
+    def from_event(cls, event: SecurityEvent) -> "SecurityEventOut":
+        return cls(
+            id=event.id,
+            kind=event.kind,
+            severity=event.severity,
+            message=event.message,
+            camera_source=event.camera_source,
+            created_at=event.created_at,
         )
 
 

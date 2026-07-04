@@ -131,3 +131,18 @@ button:hover {
 .anomaly-critical { border-color: var(--denied); color: var(--denied); }
 .anomaly-warning { border-color: var(--error); color: var(--error); }
 .anomaly-none { color: var(--granted); }
+
+.notice {
+    font-size: 0.85rem;
+    color: var(--error);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border: 1px solid var(--error);
+    border-radius: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    margin: 0 0 0.75rem;
+}
+
+#search-result, #monitoring-result {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
