@@ -85,6 +85,20 @@ class Settings:
         default_factory=lambda: _env_float("DOGARI_LIVENESS_MOTION_THRESHOLD", 1.5)
     )
 
+    # Détection d'anomalies (voir access/anomaly.py)
+    anomaly_denial_window_minutes: int = field(
+        default_factory=lambda: _env_int("DOGARI_ANOMALY_DENIAL_WINDOW_MINUTES", 10)
+    )
+    anomaly_denial_threshold: int = field(
+        default_factory=lambda: _env_int("DOGARI_ANOMALY_DENIAL_THRESHOLD", 5)
+    )
+    anomaly_off_hours_start: int = field(
+        default_factory=lambda: _env_int("DOGARI_ANOMALY_OFF_HOURS_START", 7)
+    )
+    anomaly_off_hours_end: int = field(
+        default_factory=lambda: _env_int("DOGARI_ANOMALY_OFF_HOURS_END", 20)
+    )
+
     # Contrôle de porte
     door_hold_seconds: float = field(default_factory=lambda: _env_float("DOGARI_DOOR_HOLD_SECONDS", 5.0))
     use_gpio: bool = field(default_factory=lambda: _env_bool("DOGARI_USE_GPIO", False))

@@ -12,6 +12,7 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 - Enregistrement des utilisateurs autorisés (nom, rôle, image de référence, embedding facial).
 - Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte.
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
+- Détection d'anomalies par règles (refus répétés, accès hors horaires, pics de fréquence).
 - Interface web locale (FastAPI) pour gérer les utilisateurs, lancer une reconnaissance et consulter les logs.
 
 ## Installation
@@ -72,6 +73,9 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | `DOGARI_LIVENESS_FRAME_COUNT` | Nombre d'images capturées en rafale pour l'analyse de mouvement | `5` |
 | `DOGARI_LIVENESS_CAPTURE_INTERVAL` | Délai (secondes) entre deux images de la rafale | `0.15` |
 | `DOGARI_LIVENESS_MOTION_THRESHOLD` | Mouvement minimal (différence moyenne de pixels) pour considérer le visage comme vivant | `1.5` |
+| `DOGARI_ANOMALY_DENIAL_WINDOW_MINUTES` | Fenêtre glissante (minutes) pour détecter des refus répétés | `10` |
+| `DOGARI_ANOMALY_DENIAL_THRESHOLD` | Nombre de refus dans la fenêtre pour déclencher une alerte | `5` |
+| `DOGARI_ANOMALY_OFF_HOURS_START` / `DOGARI_ANOMALY_OFF_HOURS_END` | Plage horaire (heures, 0-23) considérée comme normale | `7` / `20` |
 | `DOGARI_DOOR_HOLD_SECONDS` | Durée d'ouverture simulée de la porte | `5.0` |
 | `DOGARI_USE_GPIO` | Active le contrôle GPIO réel (Raspberry Pi, Phase 7) | `false` |
 | `DOGARI_GPIO_RELAY_PIN` | Broche GPIO (BCM) du relais de la gâche | `17` |
@@ -124,6 +128,20 @@ doit être calibré empiriquement (regardez le `motion_score` dans les logs pour
 des essais vivants vs. une photo imprimée) ; si les faux refus sont trop
 fréquents, augmentez `DOGARI_LIVENESS_FRAME_COUNT`/`DOGARI_LIVENESS_CAPTURE_INTERVAL`
 ou baissez le seuil, ou désactivez temporairement avec `DOGARI_LIVENESS_ENABLED=false`.
+
+## Détection d'anomalies
+
+`src/dogari/access/anomaly.py` analyse l'historique des accès (`access_logs`)
+par un jeu de règles simples, exposées sur `GET /api/access/anomalies` et
+affichées sur le tableau de bord :
+
+- **Refus répétés** : plusieurs tentatives refusées rapprochées (intrusion potentielle).
+- **Accès hors horaires** : un accès autorisé en dehors de la plage horaire habituelle.
+- **Fréquence inhabituelle** : un nombre élevé de tentatives (tous statuts) sur une courte période.
+
+Ce sont des règles, pas un modèle appris (aucune donnée d'entraînement
+disponible) : ajustez les seuils via les variables `DOGARI_ANOMALY_*`
+ci-dessus selon le contexte de déploiement.
 
 ## Évaluer la précision de la reconnaissance faciale
 

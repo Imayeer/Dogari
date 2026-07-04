@@ -111,3 +111,23 @@ button:hover {
     margin-top: 0.75rem;
     font-size: 0.9rem;
 }
+
+.anomalies-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.anomalies-list li {
+    border-radius: 0.35rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+}
+
+.anomaly-critical { border-color: var(--denied); color: var(--denied); }
+.anomaly-warning { border-color: var(--error); color: var(--error); }
+.anomaly-none { color: var(--granted); }

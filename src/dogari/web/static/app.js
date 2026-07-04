@@ -1,6 +1,7 @@
 const statusCards = document.getElementById("status-cards");
 const usersTableBody = document.getElementById("users-table-body");
 const logsTableBody = document.getElementById("logs-table-body");
+const anomaliesList = document.getElementById("anomalies-list");
 const recognizeBtn = document.getElementById("recognize-btn");
 const recognizeResult = document.getElementById("recognize-result");
 const addUserForm = document.getElementById("add-user-form");
@@ -59,8 +60,20 @@ async function refreshLogs() {
         .join("");
 }
 
+async function refreshAnomalies() {
+    const response = await fetch("/api/access/anomalies");
+    const anomalies = await response.json();
+    anomaliesList.innerHTML = anomalies.length
+        ? anomalies
+              .map(
+                  (anomaly) => `<li class="anomaly-${anomaly.severity}">${anomaly.message}</li>`
+              )
+              .join("")
+        : "<li class=\"anomaly-none\">Aucune anomalie détectée.</li>";
+}
+
 async function refreshAll() {
-    await Promise.all([refreshStatus(), refreshUsers(), refreshLogs()]);
+    await Promise.all([refreshStatus(), refreshUsers(), refreshLogs(), refreshAnomalies()]);
 }
 
 recognizeBtn.addEventListener("click", async () => {

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from dogari.access.anomaly import detect_anomalies
 from dogari.access.controller import AccessController
 from dogari.core.exceptions import DogariError
 from dogari.storage.access_logs_repository import get_recent_logs
-from dogari.web.schemas import AccessAttemptOut, AccessLogOut
+from dogari.web.schemas import AccessAttemptOut, AccessLogOut, AnomalyEventOut
 
 router = APIRouter(prefix="/api/access", tags=["access"])
 
@@ -36,3 +37,9 @@ def recognize() -> AccessAttemptOut:
 def logs(limit: int = 50) -> list[AccessLogOut]:
     """Retourne les tentatives d'accès les plus récentes."""
     return [AccessLogOut.from_log(log) for log in get_recent_logs(limit=limit)]
+
+
+@router.get("/anomalies", response_model=list[AnomalyEventOut])
+def anomalies() -> list[AnomalyEventOut]:
+    """Analyse l'historique des accès et retourne les anomalies détectées."""
+    return [AnomalyEventOut.from_event(event) for event in detect_anomalies()]

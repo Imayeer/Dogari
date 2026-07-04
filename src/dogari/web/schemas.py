@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from dogari.access.anomaly import AnomalyEvent
 from dogari.storage.models import AccessLog, User
 
 
@@ -59,6 +60,17 @@ class AccessAttemptOut(BaseModel):
     similarity_score: float | None
     message: str
     log_id: int | None
+
+
+class AnomalyEventOut(BaseModel):
+    kind: str
+    severity: str
+    message: str
+    log_ids: list[int]
+
+    @classmethod
+    def from_event(cls, event: AnomalyEvent) -> "AnomalyEventOut":
+        return cls(kind=event.kind, severity=event.severity, message=event.message, log_ids=event.log_ids)
 
 
 class SystemStatusOut(BaseModel):
