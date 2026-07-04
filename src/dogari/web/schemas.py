@@ -120,3 +120,4 @@ class SystemStatusOut(BaseModel):
     recent_access_count: int
     door_mode: str
     camera_source: str
+    secondary_camera_source: str | None

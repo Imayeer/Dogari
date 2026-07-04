@@ -26,4 +26,7 @@ def get_status() -> SystemStatusOut:
         recent_access_count=len(recent_logs),
         door_mode="gpio" if settings.use_gpio else "simulated",
         camera_source=str(settings.camera_source),
+        secondary_camera_source=(
+            str(settings.secondary_camera_source) if settings.secondary_camera_source is not None else None
+        ),
     )

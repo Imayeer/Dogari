@@ -43,6 +43,17 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_camera_source(name: str, default: int | str | None) -> int | str | None:
+    """Lit une source caméra : un index numérique (webcam) ou une URL (caméra IP)."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
 @dataclass(frozen=True)
 class Settings:
     """Paramètres de configuration du système Dogari."""
@@ -57,7 +68,11 @@ class Settings:
     database_path: Path = field(init=False)
 
     # Caméra
-    camera_source: int | str = field(default_factory=lambda: _env_int("DOGARI_CAMERA_INDEX", 0))
+    camera_source: int | str = field(default_factory=lambda: _env_camera_source("DOGARI_CAMERA_INDEX", 0))
+    # Caméra IP secondaire optionnelle (URL RTSP/HTTP), voir web/routes/access.py
+    secondary_camera_source: int | str | None = field(
+        default_factory=lambda: _env_camera_source("DOGARI_SECONDARY_CAMERA_SOURCE", None)
+    )
 
     # Reconnaissance faciale (OpenCV YuNet + SFace, voir vision/detector.py et vision/embeddings.py)
     yunet_model_path: Path = field(

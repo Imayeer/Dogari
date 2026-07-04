@@ -6,7 +6,7 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 
 ## Fonctionnalités du MVP
 
-- Capture vidéo depuis une webcam/caméra USB (OpenCV).
+- Capture vidéo depuis une webcam/caméra USB, avec caméra IP secondaire optionnelle (OpenCV).
 - Détection et reconnaissance faciale (YuNet + SFace, modèles ONNX via `cv2.dnn`).
 - Détection de vivacité par analyse de mouvement inter-images (anti-usurpation par photo/écran statique).
 - Enregistrement des utilisateurs autorisés (nom, rôle, image de référence, embedding facial).
@@ -66,7 +66,8 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | Variable | Description | Défaut |
 |---|---|---|
 | `DOGARI_DATA_DIR` | Dossier de données (base SQLite, images, logs) | `data/` |
-| `DOGARI_CAMERA_INDEX` | Index de la caméra OpenCV | `0` |
+| `DOGARI_CAMERA_INDEX` | Index de la caméra principale (webcam USB) ou URL RTSP/HTTP | `0` |
+| `DOGARI_SECONDARY_CAMERA_SOURCE` | URL RTSP/HTTP d'une caméra IP secondaire optionnelle | non configurée |
 | `DOGARI_YUNET_MODEL_PATH` | Chemin du modèle de détection YuNet (`.onnx`) | `models/face_detection_yunet_2023mar.onnx` |
 | `DOGARI_SFACE_MODEL_PATH` | Chemin du modèle de reconnaissance SFace (`.onnx`) | `models/face_recognition_sface_2021dec.onnx` |
 | `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance L2 pour la reconnaissance faciale (plus petit = plus strict) | `1.128` |
@@ -165,6 +166,22 @@ anomalies incluses). Disponible de trois façons :
   ```
   0 8 * * 1 cd /chemin/vers/dogari && .venv/bin/python scripts/generate_report.py --days 7 --output data/logs/rapport_hebdo.txt
   ```
+
+## Caméra IP secondaire
+
+Une seconde caméra (URL RTSP/HTTP) peut être configurée via
+`DOGARI_SECONDARY_CAMERA_SOURCE`, par exemple :
+
+```bash
+DOGARI_SECONDARY_CAMERA_SOURCE=rtsp://192.168.1.50:554/stream1 python -m dogari.web.app
+```
+
+Une fois configurée, elle apparaît dans le sélecteur "Caméra" du tableau de
+bord et peut être ciblée directement via l'API :
+`POST /api/access/recognize?camera=secondary` (`camera=primary` par défaut).
+La caméra principale (`DOGARI_CAMERA_INDEX`) accepte elle aussi une URL
+RTSP/HTTP à la place d'un index numérique, si vous préférez n'utiliser que des
+caméras IP.
 
 ## Évaluer la précision de la reconnaissance faciale
 

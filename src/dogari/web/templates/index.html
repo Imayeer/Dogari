@@ -20,6 +20,13 @@
 
         <section id="recognize-section">
             <h2>Reconnaissance faciale</h2>
+            <label>
+                Caméra
+                <select id="camera-select">
+                    <option value="primary">Principale</option>
+                    <option value="secondary" id="camera-secondary-option" disabled>Secondaire</option>
+                </select>
+            </label>
             <button id="recognize-btn">Lancer une tentative d'accès</button>
             <div id="recognize-result"></div>
         </section>

@@ -10,6 +10,8 @@ const reportForm = document.getElementById("report-form");
 const reportResult = document.getElementById("report-result");
 const reportCsvLink = document.getElementById("report-csv-link");
 const reportTxtLink = document.getElementById("report-txt-link");
+const cameraSelect = document.getElementById("camera-select");
+const cameraSecondaryOption = document.getElementById("camera-secondary-option");
 
 function formatDate(value) {
     return value ? value.replace("T", " ") : "-";
@@ -24,7 +26,9 @@ async function refreshStatus() {
         <div class="card">Accès enregistrés<strong>${data.recent_access_count}</strong></div>
         <div class="card">Mode porte<strong>${data.door_mode}</strong></div>
         <div class="card">Caméra<strong>${data.camera_source}</strong></div>
+        <div class="card">Caméra secondaire<strong>${data.secondary_camera_source ?? "non configurée"}</strong></div>
     `;
+    cameraSecondaryOption.disabled = !data.secondary_camera_source;
 }
 
 async function refreshUsers() {
@@ -84,7 +88,8 @@ recognizeBtn.addEventListener("click", async () => {
     recognizeBtn.disabled = true;
     recognizeResult.textContent = "Reconnaissance en cours...";
     try {
-        const response = await fetch("/api/access/recognize", { method: "POST" });
+        const camera = cameraSelect.value;
+        const response = await fetch(`/api/access/recognize?camera=${camera}`, { method: "POST" });
         const data = await response.json();
         if (!response.ok) {
             recognizeResult.textContent = `Erreur : ${data.detail ?? "inconnue"}`;
