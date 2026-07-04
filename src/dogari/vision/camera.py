@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from types import TracebackType
 from typing import Optional
 
@@ -41,6 +42,18 @@ class Camera:
         if not success or frame is None:
             raise CameraError("Échec de la capture d'image depuis la caméra.")
         return frame
+
+    def capture_burst(self, count: int, interval: float) -> list[np.ndarray]:
+        """Capture plusieurs images successives, espacées de `interval` secondes.
+
+        Utilisé pour la détection de vivacité (voir `vision/liveness.py`), qui a
+        besoin de plusieurs images rapprochées pour évaluer le mouvement.
+        """
+        frames = [self.capture_frame()]
+        for _ in range(count - 1):
+            time.sleep(interval)
+            frames.append(self.capture_frame())
+        return frames
 
     def release(self) -> None:
         if self._capture is not None:

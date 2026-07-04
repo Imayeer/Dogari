@@ -8,6 +8,7 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 
 - Capture vidéo depuis une webcam/caméra USB (OpenCV).
 - Détection et reconnaissance faciale (YuNet + SFace, modèles ONNX via `cv2.dnn`).
+- Détection de vivacité par analyse de mouvement inter-images (anti-usurpation par photo/écran statique).
 - Enregistrement des utilisateurs autorisés (nom, rôle, image de référence, embedding facial).
 - Décision d'accès (autorisé / refusé / erreur) avec simulation d'ouverture de porte.
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
@@ -67,6 +68,10 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | `DOGARI_YUNET_MODEL_PATH` | Chemin du modèle de détection YuNet (`.onnx`) | `models/face_detection_yunet_2023mar.onnx` |
 | `DOGARI_SFACE_MODEL_PATH` | Chemin du modèle de reconnaissance SFace (`.onnx`) | `models/face_recognition_sface_2021dec.onnx` |
 | `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance L2 pour la reconnaissance faciale (plus petit = plus strict) | `1.128` |
+| `DOGARI_LIVENESS_ENABLED` | Active la détection de vivacité (anti-photo/écran) avant la reconnaissance | `true` |
+| `DOGARI_LIVENESS_FRAME_COUNT` | Nombre d'images capturées en rafale pour l'analyse de mouvement | `5` |
+| `DOGARI_LIVENESS_CAPTURE_INTERVAL` | Délai (secondes) entre deux images de la rafale | `0.15` |
+| `DOGARI_LIVENESS_MOTION_THRESHOLD` | Mouvement minimal (différence moyenne de pixels) pour considérer le visage comme vivant | `1.5` |
 | `DOGARI_DOOR_HOLD_SECONDS` | Durée d'ouverture simulée de la porte | `5.0` |
 | `DOGARI_USE_GPIO` | Active le contrôle GPIO réel (Raspberry Pi, Phase 7) | `false` |
 | `DOGARI_GPIO_RELAY_PIN` | Broche GPIO (BCM) du relais de la gâche | `17` |
@@ -102,6 +107,23 @@ pytest
 Les tests de stockage et de contrôle d'accès s'exécutent sans dépendre du matériel
 (caméra, GPIO) grâce à une base de données temporaire et à l'injection de
 dépendances (voir `tests/conftest.py`).
+
+## Détection de vivacité (anti-usurpation)
+
+Avant de tenter la reconnaissance, le système capture une courte rafale
+d'images (`DOGARI_LIVENESS_FRAME_COUNT`, espacées de `DOGARI_LIVENESS_CAPTURE_INTERVAL`
+secondes) et mesure le mouvement du visage entre ces images
+(`src/dogari/vision/liveness.py`). Une photo ou un écran statique présente un
+visage quasi identique d'une image à l'autre et est rejeté (statut
+`spoof_detected`) ; un vrai visage bouge toujours légèrement.
+
+C'est une protection volontairement simple pour un MVP : le bruit du capteur
+peut produire un écart non nul même sur une scène parfaitement immobile, et
+cette méthode ne protège pas contre un rejeu vidéo. `DOGARI_LIVENESS_MOTION_THRESHOLD`
+doit être calibré empiriquement (regardez le `motion_score` dans les logs pour
+des essais vivants vs. une photo imprimée) ; si les faux refus sont trop
+fréquents, augmentez `DOGARI_LIVENESS_FRAME_COUNT`/`DOGARI_LIVENESS_CAPTURE_INTERVAL`
+ou baissez le seuil, ou désactivez temporairement avec `DOGARI_LIVENESS_ENABLED=false`.
 
 ## Évaluer la précision de la reconnaissance faciale
 

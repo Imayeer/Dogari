@@ -75,6 +75,16 @@ class Settings:
         default_factory=lambda: _env_float("DOGARI_RECOGNITION_TOLERANCE", 1.128)
     )
 
+    # Détection de vivacité (anti-usurpation par photo/écran, voir vision/liveness.py)
+    liveness_enabled: bool = field(default_factory=lambda: _env_bool("DOGARI_LIVENESS_ENABLED", True))
+    liveness_frame_count: int = field(default_factory=lambda: _env_int("DOGARI_LIVENESS_FRAME_COUNT", 5))
+    liveness_capture_interval: float = field(
+        default_factory=lambda: _env_float("DOGARI_LIVENESS_CAPTURE_INTERVAL", 0.15)
+    )
+    liveness_motion_threshold: float = field(
+        default_factory=lambda: _env_float("DOGARI_LIVENESS_MOTION_THRESHOLD", 1.5)
+    )
+
     # Contrôle de porte
     door_hold_seconds: float = field(default_factory=lambda: _env_float("DOGARI_DOOR_HOLD_SECONDS", 5.0))
     use_gpio: bool = field(default_factory=lambda: _env_bool("DOGARI_USE_GPIO", False))

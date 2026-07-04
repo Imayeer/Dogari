@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from dogari.core.config import settings
 from dogari.core.constants import AccessStatus, RecognitionStatus
 from dogari.core.exceptions import CameraError
 from dogari.storage.access_logs_repository import create_log
@@ -14,6 +15,7 @@ from dogari.storage.users_repository import get_active_users_with_embeddings
 from dogari.vision.camera import Camera
 from dogari.vision.detector import detect_single_face
 from dogari.vision.embeddings import generate_embedding
+from dogari.vision.liveness import check_liveness
 from dogari.vision.recognizer import FaceRecognizer
 
 from dogari.access.door import DoorController, get_door_controller
@@ -49,15 +51,18 @@ class AccessController:
     def attempt_access(self, frame: np.ndarray | None = None) -> AccessAttemptResult:
         """Exécute une tentative d'accès complète et journalise le résultat.
 
-        Si `frame` est fourni, la capture caméra est court-circuitée (utile
-        pour les tests et pour l'upload d'image via l'API web).
+        Si `frame` est fourni, la capture caméra (et la détection de vivacité,
+        qui nécessite plusieurs images) est court-circuitée : utile pour les
+        tests et pour l'upload d'une image unique via l'API web.
         """
         camera_label = str(self.camera_source) if self.camera_source is not None else "default"
 
         try:
             if frame is None:
                 with Camera(self.camera_source) as camera:
-                    frame = camera.capture_frame()
+                    frames = camera.capture_burst(settings.liveness_frame_count, settings.liveness_capture_interval)
+            else:
+                frames = [frame]
         except CameraError as exc:
             return self._record(
                 access_status=AccessStatus.ERROR,
@@ -68,7 +73,8 @@ class AccessController:
                 camera_source=camera_label,
             )
 
-        face_location = detect_single_face(frame)
+        primary_frame = frames[-1]
+        face_location = detect_single_face(primary_frame)
         if face_location is None:
             return self._record(
                 access_status=AccessStatus.DENIED,
@@ -79,7 +85,22 @@ class AccessController:
                 camera_source=camera_label,
             )
 
-        embedding = generate_embedding(frame, face_location)
+        if settings.liveness_enabled:
+            liveness = check_liveness(frames, face_location)
+            if not liveness.is_live:
+                return self._record(
+                    access_status=AccessStatus.DENIED,
+                    recognition_status=RecognitionStatus.SPOOF_DETECTED,
+                    user=None,
+                    similarity_score=None,
+                    message=(
+                        "Échec de la détection de vivacité (photo ou écran suspecté), "
+                        f"score de mouvement : {liveness.motion_score:.2f}."
+                    ),
+                    camera_source=camera_label,
+                )
+
+        embedding = generate_embedding(primary_frame, face_location)
         known_users = get_active_users_with_embeddings()
         recognizer = FaceRecognizer(known_users)
         match = recognizer.identify(embedding)
