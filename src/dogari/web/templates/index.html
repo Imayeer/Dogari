@@ -12,163 +12,331 @@
         <p>Système intelligent de contrôle d'accès — v{{ version }}</p>
     </header>
 
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="overview">Vue d'ensemble</button>
+        <button class="tab-btn" data-tab="access">Contrôle d'accès</button>
+        <button class="tab-btn" data-tab="users">Utilisateurs &amp; Rôles</button>
+        <button class="tab-btn" data-tab="surveillance">Surveillance</button>
+        <button class="tab-btn" data-tab="reports">Rapports</button>
+    </nav>
+
     <main>
-        <section id="status-section">
-            <h2>Statut du système</h2>
-            <div id="status-cards" class="cards"></div>
-        </section>
+        <!-- ==================== Vue d'ensemble ==================== -->
+        <div class="tab-panel active" id="tab-overview">
+            <section id="status-section">
+                <h2>Statut du système</h2>
+                <div id="status-cards" class="cards"></div>
+            </section>
 
-        <section id="recognize-section">
-            <h2>Reconnaissance faciale</h2>
-            <label>
-                Caméra
-                <select id="camera-select">
-                    <option value="primary">Principale</option>
-                    <option value="secondary" id="camera-secondary-option" disabled>Secondaire</option>
-                </select>
-            </label>
-            <button id="recognize-btn">Lancer une tentative d'accès</button>
-            <div id="recognize-result"></div>
-        </section>
+            <section id="anomalies-section">
+                <h2>Anomalies détectées</h2>
+                <ul id="anomalies-list" class="anomalies-list"></ul>
+            </section>
+        </div>
 
-        <section id="search-section">
-            <h2>Rechercher une personne</h2>
-            <p class="notice">
-                Ne fonctionne que pour un utilisateur déjà enregistré (visage connu du système).
-            </p>
-            <form id="search-form">
+        <!-- ==================== Contrôle d'accès ==================== -->
+        <div class="tab-panel" id="tab-access">
+            <section id="portals-section">
+                <h2>Portails (points d'accès)</h2>
+                <form id="add-portal-form">
+                    <label>
+                        Nom
+                        <input type="text" name="name" required />
+                    </label>
+                    <label>
+                        Source caméra
+                        <input type="text" name="camera_source" placeholder="0 ou rtsp://..." required />
+                    </label>
+                    <label>
+                        Type de caméra
+                        <select name="camera_kind">
+                            <option value="usb">USB</option>
+                            <option value="ip">IP</option>
+                        </select>
+                    </label>
+                    <label>
+                        Type de porte
+                        <select name="door_type">
+                            <option value="simulated">Simulée</option>
+                            <option value="gpio">GPIO (Raspberry Pi)</option>
+                        </select>
+                    </label>
+                    <label>
+                        Broche GPIO (si GPIO)
+                        <input type="number" name="gpio_relay_pin" />
+                    </label>
+                    <button type="submit">Créer le portail</button>
+                </form>
+                <div id="portal-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Caméra</th>
+                            <th>Type</th>
+                            <th>Porte</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="portals-table-body"></tbody>
+                </table>
+            </section>
+
+            <section id="recognize-section">
+                <h2>Reconnaissance faciale</h2>
                 <label>
-                    Nom complet
-                    <input type="text" name="full_name" required />
+                    Portail
+                    <select id="recognize-portal-select"></select>
                 </label>
-                <label>
-                    Caméra
-                    <select name="camera" id="search-camera-select">
-                        <option value="primary">Principale</option>
-                        <option value="secondary" id="search-camera-secondary-option" disabled>Secondaire</option>
-                    </select>
-                </label>
-                <button type="submit">Démarrer la recherche</button>
-            </form>
-            <div id="search-result"></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nom recherché</th>
-                        <th>Caméra</th>
-                        <th>Démarrée le</th>
-                        <th>Observations</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="search-table-body"></tbody>
-            </table>
-        </section>
+                <button id="recognize-btn">Lancer une tentative d'accès</button>
+                <div id="recognize-result"></div>
+            </section>
 
-        <section id="monitoring-section">
-            <h2>Surveillance sécurité (foule, armes)</h2>
-            <p class="notice">
-                La détection de foule est fiable. La détection d'armes est <strong>expérimentale</strong>,
-                désactivée par défaut, et ne doit jamais être considérée comme une garantie de sécurité
-                (voir le README).
-            </p>
-            <form id="monitoring-form">
-                <label>
-                    Caméra
-                    <select name="camera" id="monitoring-camera-select">
-                        <option value="primary">Principale</option>
-                        <option value="secondary" id="monitoring-camera-secondary-option" disabled>Secondaire</option>
-                    </select>
-                </label>
-                <button type="submit">Démarrer la surveillance</button>
-            </form>
-            <div id="monitoring-result"></div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Caméra</th>
-                        <th>Démarrée le</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="monitoring-table-body"></tbody>
-            </table>
-            <h3>Événements de sécurité</h3>
-            <ul id="security-events-list" class="anomalies-list"></ul>
-        </section>
+            <section id="logs-section">
+                <h2>Derniers accès</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Utilisateur</th>
+                            <th>Portail</th>
+                            <th>Statut</th>
+                            <th>Score</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body"></tbody>
+                </table>
+            </section>
+        </div>
 
-        <section id="add-user-section">
-            <h2>Ajouter un utilisateur</h2>
-            <form id="add-user-form">
-                <label>
-                    Nom complet
-                    <input type="text" name="full_name" required />
-                </label>
-                <label>
-                    Rôle
-                    <input type="text" name="role" />
-                </label>
-                <label>
-                    Image de référence (visage)
-                    <input type="file" name="face_image" accept="image/*" required />
-                </label>
-                <button type="submit">Ajouter</button>
-            </form>
-            <div id="add-user-result"></div>
-        </section>
+        <!-- ==================== Utilisateurs & Rôles ==================== -->
+        <div class="tab-panel" id="tab-users">
+            <section id="add-user-section">
+                <h2>Ajouter un utilisateur</h2>
+                <form id="add-user-form">
+                    <label>
+                        Nom complet
+                        <input type="text" name="full_name" required />
+                    </label>
+                    <label>
+                        Rôle d'accès
+                        <select name="role_id" id="add-user-role-select">
+                            <option value="">Aucun</option>
+                        </select>
+                    </label>
+                    <label>
+                        Image de référence (visage)
+                        <input type="file" name="face_image" accept="image/*" required />
+                    </label>
+                    <button type="submit">Ajouter</button>
+                </form>
+                <div id="add-user-result"></div>
+            </section>
 
-        <section id="users-section">
-            <h2>Utilisateurs autorisés</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th>Rôle</th>
-                        <th>Statut</th>
-                        <th>Créé le</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="users-table-body"></tbody>
-            </table>
-        </section>
+            <section id="users-section">
+                <h2>Utilisateurs autorisés</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Rôle</th>
+                            <th>Statut</th>
+                            <th>Créé le</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
+            </section>
 
-        <section id="anomalies-section">
-            <h2>Anomalies détectées</h2>
-            <ul id="anomalies-list" class="anomalies-list"></ul>
-        </section>
+            <section id="roles-section">
+                <h2>Rôles d'accès</h2>
+                <form id="add-role-form">
+                    <label>
+                        Nom du rôle
+                        <input type="text" name="name" required />
+                    </label>
+                    <button type="submit">Créer le rôle</button>
+                </form>
+                <div id="role-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Créé le</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roles-table-body"></tbody>
+                </table>
 
-        <section id="reports-section">
-            <h2>Rapport de synthèse</h2>
-            <form id="report-form">
-                <label>
-                    Période (jours)
-                    <input type="number" name="days" value="7" min="1" max="365" />
-                </label>
-                <button type="submit">Générer</button>
-                <a id="report-csv-link" href="/api/reports/export.csv?days=7">Exporter CSV</a>
-                <a id="report-txt-link" href="/api/reports/export.txt?days=7">Exporter TXT</a>
-            </form>
-            <div id="report-result"></div>
-        </section>
+                <h3>Horaires d'accès par portail</h3>
+                <p class="notice">
+                    Un rôle n'a accès à un portail qu'aux jours et créneaux horaires définis ici.
+                    Aucun horaire pour un portail = aucun accès à ce portail.
+                </p>
+                <form id="add-schedule-form">
+                    <label>
+                        Rôle
+                        <select name="role_id" id="schedule-role-select" required></select>
+                    </label>
+                    <label>
+                        Portail
+                        <select name="portal_id" id="schedule-portal-select" required></select>
+                    </label>
+                    <label>
+                        Jour
+                        <select name="weekday">
+                            <option value="0">Lundi</option>
+                            <option value="1">Mardi</option>
+                            <option value="2">Mercredi</option>
+                            <option value="3">Jeudi</option>
+                            <option value="4">Vendredi</option>
+                            <option value="5">Samedi</option>
+                            <option value="6">Dimanche</option>
+                        </select>
+                    </label>
+                    <label>
+                        De
+                        <input type="time" name="start_time" value="08:00" required />
+                    </label>
+                    <label>
+                        À
+                        <input type="time" name="end_time" value="18:00" required />
+                    </label>
+                    <button type="submit">Ajouter l'horaire</button>
+                </form>
+                <div id="schedule-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rôle</th>
+                            <th>Portail</th>
+                            <th>Jour</th>
+                            <th>De</th>
+                            <th>À</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules-table-body"></tbody>
+                </table>
+            </section>
+        </div>
 
-        <section id="logs-section">
-            <h2>Derniers accès</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Utilisateur</th>
-                        <th>Statut</th>
-                        <th>Score</th>
-                        <th>Message</th>
-                    </tr>
-                </thead>
-                <tbody id="logs-table-body"></tbody>
-            </table>
-        </section>
+        <!-- ==================== Surveillance ==================== -->
+        <div class="tab-panel" id="tab-surveillance">
+            <section id="ip-cameras-section">
+                <h2>Caméras IP de surveillance</h2>
+                <p class="notice">
+                    Caméras sans porte associée : utilisées uniquement pour la recherche de personne
+                    et la surveillance sécurité, pas pour le contrôle d'accès.
+                </p>
+                <form id="add-ip-camera-form">
+                    <label>
+                        Nom
+                        <input type="text" name="name" required />
+                    </label>
+                    <label>
+                        URL (RTSP/HTTP)
+                        <input type="text" name="source" placeholder="rtsp://..." required />
+                    </label>
+                    <button type="submit">Ajouter la caméra</button>
+                </form>
+                <div id="ip-camera-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Source</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ip-cameras-table-body"></tbody>
+                </table>
+            </section>
+
+            <section id="search-section">
+                <h2>Rechercher une personne</h2>
+                <p class="notice">
+                    Ne fonctionne que pour un utilisateur déjà enregistré (visage connu du système).
+                </p>
+                <form id="search-form">
+                    <label>
+                        Nom complet
+                        <input type="text" name="full_name" required />
+                    </label>
+                    <label>
+                        Caméra
+                        <select id="search-camera-select"></select>
+                    </label>
+                    <button type="submit">Démarrer la recherche</button>
+                </form>
+                <div id="search-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom recherché</th>
+                            <th>Caméra</th>
+                            <th>Démarrée le</th>
+                            <th>Observations</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="search-table-body"></tbody>
+                </table>
+            </section>
+
+            <section id="monitoring-section">
+                <h2>Surveillance sécurité (foule, armes)</h2>
+                <p class="notice">
+                    La détection de foule est fiable. La détection d'armes est <strong>expérimentale</strong>,
+                    désactivée par défaut, et ne doit jamais être considérée comme une garantie de sécurité
+                    (voir le README).
+                </p>
+                <form id="monitoring-form">
+                    <label>
+                        Caméra
+                        <select id="monitoring-camera-select"></select>
+                    </label>
+                    <button type="submit">Démarrer la surveillance</button>
+                </form>
+                <div id="monitoring-result"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Caméra</th>
+                            <th>Démarrée le</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monitoring-table-body"></tbody>
+                </table>
+                <h3>Événements de sécurité</h3>
+                <ul id="security-events-list" class="anomalies-list"></ul>
+            </section>
+        </div>
+
+        <!-- ==================== Rapports ==================== -->
+        <div class="tab-panel" id="tab-reports">
+            <section id="reports-section">
+                <h2>Rapport de synthèse</h2>
+                <form id="report-form">
+                    <label>
+                        Période (jours)
+                        <input type="number" name="days" value="7" min="1" max="365" />
+                    </label>
+                    <button type="submit">Générer</button>
+                    <a id="report-csv-link" href="/api/reports/export.csv?days=7">Exporter CSV</a>
+                    <a id="report-txt-link" href="/api/reports/export.txt?days=7">Exporter TXT</a>
+                </form>
+                <div id="report-result"></div>
+            </section>
+        </div>
     </main>
 
     <script src="/static/app.js"></script>

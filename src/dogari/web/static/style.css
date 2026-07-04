@@ -15,7 +15,7 @@ body {
     font-family: system-ui, -apple-system, sans-serif;
     margin: 0;
     padding: 0 1.5rem 3rem;
-    max-width: 960px;
+    max-width: 1080px;
     margin-inline: auto;
     line-height: 1.5;
 }
@@ -28,6 +28,44 @@ header {
 header h1 {
     margin: 0;
     color: var(--accent);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+    background: transparent;
+    color: inherit;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.tab-btn:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.tab-btn.active {
+    border-bottom-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
 }
 
 section {
@@ -84,10 +122,13 @@ label {
     gap: 0.25rem;
 }
 
-input {
+input, select {
     padding: 0.4rem;
     border: 1px solid var(--border);
     border-radius: 0.35rem;
+    font: inherit;
+    background: transparent;
+    color: inherit;
 }
 
 button {
