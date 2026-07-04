@@ -215,8 +215,10 @@ python scripts/evaluate_recognition.py mon_jeu_de_test --csv resultats.csv
 ## État d'avancement
 
 Les phases 1 à 6 du MVP sont implémentées : structure du projet, base de données,
-module caméra, reconnaissance faciale, contrôle d'accès et interface web. Le
+module caméra, reconnaissance faciale, contrôle d'accès et interface web. Les
+améliorations de la Phase 8 sont également implémentées : détection de vivacité,
+caméra IP secondaire, détection d'anomalies et rapports automatiques. Le
 contrôle GPIO réel (Phase 7) est préparé via `GPIODoorController` dans
 `src/dogari/access/door.py`, activable sur Raspberry Pi avec `DOGARI_USE_GPIO=true`
-une fois le matériel branché. Le détail des phases est documenté dans
-[PROJECT.md](PROJECT.md).
+une fois le matériel branché — il reste à valider sur le matériel réel. Le détail
+des phases est documenté dans [PROJECT.md](PROJECT.md).

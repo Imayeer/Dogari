@@ -198,12 +198,12 @@ Contient l'interface web locale (`app.py`, `templates/`, `static/`) et les route
 - Ajouter le contrôle GPIO (`GPIODoorController` déjà préparé dans `access/door.py`).
 - Tester la gâche électrique 12V.
 
-### Phase 8 — Améliorations IA (à venir)
+### Phase 8 — Améliorations IA ✅
 
-- Ajouter la détection de vie.
-- Ajouter une caméra IP secondaire.
-- Ajouter la détection d'anomalies.
-- Ajouter la génération automatique de rapports.
+- Ajouter la détection de vie (anti-usurpation par analyse de mouvement, voir `vision/liveness.py`).
+- Ajouter une caméra IP secondaire (`DOGARI_SECONDARY_CAMERA_SOURCE`, voir README).
+- Ajouter la détection d'anomalies (règles sur `access_logs`, voir `access/anomaly.py`).
+- Ajouter la génération automatique de rapports (`access/reports.py`, `scripts/generate_report.py`).
 
 ## 11. Modèle de données
 
