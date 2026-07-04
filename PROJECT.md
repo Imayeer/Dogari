@@ -205,6 +205,16 @@ Contient l'interface web locale (`app.py`, `templates/`, `static/`) et les route
 - Ajouter la détection d'anomalies (règles sur `access_logs`, voir `access/anomaly.py`).
 - Ajouter la génération automatique de rapports (`access/reports.py`, `scripts/generate_report.py`).
 
+### Phase 8+ — Extensions sécurité additionnelles ✅
+
+Fonctionnalités ajoutées sur demande, au-delà du périmètre initial de la Phase 8 :
+
+- Recherche continue d'une personne nommée (déjà enregistrée) sur un flux caméra (`access/person_search.py`).
+- Détection de foule / mouvements de masse par comptage de visages (`access/security_monitor.py`).
+- Détection d'armes **expérimentale**, désactivée par défaut (`vision/weapon_detector.py`) : à la différence
+  de la reconnaissance faciale (YuNet/SFace), aucun modèle de référence officiellement validé n'existe pour
+  cet usage ; voir l'avertissement détaillé dans le README avant toute activation.
+
 ## 11. Modèle de données
 
 ### Table users

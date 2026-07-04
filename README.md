@@ -14,6 +14,8 @@ Voir [PROJECT.md](PROJECT.md) pour la spécification complète du projet (object
 - Journalisation de chaque tentative d'accès dans une base SQLite locale.
 - Détection d'anomalies par règles (refus répétés, accès hors horaires, pics de fréquence).
 - Génération de rapports de synthèse (quotidien/hebdomadaire), exportables en CSV/texte.
+- Recherche continue d'une personne nommée (déjà enregistrée) sur un flux caméra.
+- Surveillance sécurité continue : détection de foule (fiable) et d'armes (**expérimentale**, désactivée par défaut).
 - Interface web locale (FastAPI) pour gérer les utilisateurs, lancer une reconnaissance et consulter les logs.
 
 ## Installation
@@ -78,6 +80,13 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | `DOGARI_ANOMALY_DENIAL_WINDOW_MINUTES` | Fenêtre glissante (minutes) pour détecter des refus répétés | `10` |
 | `DOGARI_ANOMALY_DENIAL_THRESHOLD` | Nombre de refus dans la fenêtre pour déclencher une alerte | `5` |
 | `DOGARI_ANOMALY_OFF_HOURS_START` / `DOGARI_ANOMALY_OFF_HOURS_END` | Plage horaire (heures, 0-23) considérée comme normale | `7` / `20` |
+| `DOGARI_SEARCH_POLL_INTERVAL_SECONDS` | Délai entre deux images lors d'une recherche de personne | `2.0` |
+| `DOGARI_SEARCH_SIGHTING_COOLDOWN_SECONDS` | Délai minimal entre deux observations journalisées pour une même recherche | `30.0` |
+| `DOGARI_MONITORING_POLL_INTERVAL_SECONDS` | Délai entre deux images lors d'une surveillance sécurité | `2.0` |
+| `DOGARI_CROWD_SIZE_THRESHOLD` | Nombre de visages simultanés déclenchant une alerte de foule | `5` |
+| `DOGARI_WEAPON_DETECTION_ENABLED` | Active la détection d'armes **expérimentale** (voir avertissement ci-dessous) | `false` |
+| `DOGARI_WEAPON_MODEL_PATH` | Chemin du modèle YOLO de détection d'armes (`.pt`) | `models/weapon_detection.pt` |
+| `DOGARI_WEAPON_CONFIDENCE_THRESHOLD` | Confiance minimale pour retenir une détection d'arme | `0.5` |
 | `DOGARI_DOOR_HOLD_SECONDS` | Durée d'ouverture simulée de la porte | `5.0` |
 | `DOGARI_USE_GPIO` | Active le contrôle GPIO réel (Raspberry Pi, Phase 7) | `false` |
 | `DOGARI_GPIO_RELAY_PIN` | Broche GPIO (BCM) du relais de la gâche | `17` |
@@ -89,6 +98,7 @@ Le comportement du système peut être ajusté via des variables d'environnement
 dogari/
 ├── PROJECT.md              # Spécification complète du projet
 ├── requirements.txt
+├── requirements-weapon-detection.txt  # Dépendance optionnelle (détection d'armes expérimentale)
 ├── pyproject.toml
 ├── data/                   # Base SQLite, images de visages, logs (non versionné)
 ├── models/                 # Modèles ONNX YuNet/SFace (non versionnés, voir download_models.py)
@@ -183,6 +193,72 @@ La caméra principale (`DOGARI_CAMERA_INDEX`) accepte elle aussi une URL
 RTSP/HTTP à la place d'un index numérique, si vous préférez n'utiliser que des
 caméras IP.
 
+## Recherche continue d'une personne sur un flux caméra
+
+Retrouve un utilisateur **déjà enregistré** (visage connu du système) sur un
+flux caméra en continu : démarre une tâche de fond qui échantillonne la
+caméra choisie toutes les `DOGARI_SEARCH_POLL_INTERVAL_SECONDS` secondes,
+compare chaque visage détecté à l'embedding de la personne nommée, et
+journalise chaque observation ("sighting").
+
+```bash
+# Démarrer une recherche
+curl -X POST http://localhost:8000/api/search/start \
+  -H "Content-Type: application/json" \
+  -d '{"full_name": "Alice Dupont", "camera": "secondary"}'
+
+# Lister les recherches actives, consulter les observations, arrêter
+curl http://localhost:8000/api/search
+curl http://localhost:8000/api/search/<search_id>/sightings
+curl -X POST http://localhost:8000/api/search/<search_id>/stop
+```
+
+Également disponible sur le tableau de bord, section "Rechercher une
+personne". Ne fonctionne que pour des utilisateurs déjà enregistrés (avec
+consentement implicite via l'inscription) : ce n'est pas un outil de suivi de
+personnes non enregistrées, et chaque recherche doit être arrêtée
+explicitement (`.../stop`) une fois terminée.
+
+> **Limite technique** : le registre des recherches actives est en mémoire
+> dans le processus web — il ne survit pas à un redémarrage du serveur et ne
+> fonctionne qu'avec un seul worker uvicorn (adapté au MVP).
+
+## Surveillance sécurité continue (foule, armes)
+
+Démarre une surveillance en tâche de fond sur une caméra, avec deux volets :
+
+- **Détection de foule ("mouvements de masse")** : fiable, basée sur le
+  comptage de visages détectés simultanément (`DOGARI_CROWD_SIZE_THRESHOLD`).
+  Événement `crowd_detected` journalisé et affiché sur le tableau de bord.
+- **Détection d'armes — ⚠️ EXPÉRIMENTALE, désactivée par défaut** :
+
+  > Contrairement à la détection/reconnaissance faciale (YuNet/SFace), il
+  > n'existe **aucun modèle de référence officiellement maintenu et validé**
+  > pour la détection d'armes — les modèles COCO standards n'ont même pas de
+  > classe "arme". Ce module (`src/dogari/vision/weapon_detector.py`) s'appuie
+  > sur un modèle YOLO (Ultralytics) que vous devez fournir vous-même, dont le
+  > taux de faux positifs/négatifs **n'est pas garanti**. **Ne l'utilisez
+  > jamais comme seule mesure de sécurité** : il doit être combiné à une
+  > supervision humaine et à d'autres contrôles physiques. Toute alerte doit
+  > être vérifiée manuellement avant toute action.
+
+  Pour l'activer :
+
+  ```bash
+  pip install -r requirements-weapon-detection.txt   # installe ultralytics (+ torch)
+  # Fournissez un modèle YOLO entraîné pour la détection d'armes (poids .pt),
+  # placé à DOGARI_WEAPON_MODEL_PATH (models/weapon_detection.pt par défaut).
+  DOGARI_WEAPON_DETECTION_ENABLED=true python -m dogari.web.app
+  ```
+
+Utilisation (dashboard, section "Surveillance sécurité", ou API) :
+
+```bash
+curl -X POST http://localhost:8000/api/monitoring/start -H "Content-Type: application/json" -d '{"camera": "primary"}'
+curl http://localhost:8000/api/monitoring/events
+curl -X POST http://localhost:8000/api/monitoring/<monitor_id>/stop
+```
+
 ## Évaluer la précision de la reconnaissance faciale
 
 `scripts/evaluate_recognition.py` mesure l'exactitude réelle du modèle sur un
@@ -222,3 +298,11 @@ contrôle GPIO réel (Phase 7) est préparé via `GPIODoorController` dans
 `src/dogari/access/door.py`, activable sur Raspberry Pi avec `DOGARI_USE_GPIO=true`
 une fois le matériel branché — il reste à valider sur le matériel réel. Le détail
 des phases est documenté dans [PROJECT.md](PROJECT.md).
+
+Au-delà de la Phase 8 initiale, trois fonctionnalités de sécurité
+supplémentaires ont été ajoutées sur demande : recherche continue d'une
+personne nommée sur un flux caméra, détection de foule ("mouvements de
+masse"), et détection d'armes. Cette dernière est explicitement
+**expérimentale** (voir la section dédiée ci-dessus) : aucun modèle de
+référence validé n'existe pour cet usage, contrairement à la détection
+faciale.
