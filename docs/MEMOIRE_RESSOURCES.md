@@ -203,7 +203,40 @@ point de blocage classique identifié *avant* qu'il ne devienne un problème
 en fin de projet. C'est un exemple concret d'anticipation de contrainte de
 déploiement à valoriser dans le mémoire (chapitre choix techniques).
 
-### 3.2 Seuils et paramètres clés
+### 3.2 Détection d'armes : classification binaire vs. multi-classe (comparaison argumentée)
+
+Point de conception à documenter explicitement dans le mémoire — c'est un
+exemple concret d'arbitrage précision/finesse d'information sous contrainte
+de données limitées, un raisonnement classique en apprentissage supervisé.
+
+**Le choix fait** : entraîner sur un jeu de données à **classe unique**
+("weapon" — présence/absence d'arme), plutôt que sur un jeu de données à
+classes multiples (ex. "knife"/"pistol"/"rifle"/"shotgun" séparément).
+
+**Comparaison :**
+
+| Critère | Classe unique ("weapon") | Classes multiples (par type d'arme) |
+|---|---|---|
+| Volume de données nécessaire par classe | Tout le dataset alimente une seule classe → plus d'exemples par classe pour un volume total identique | Le même volume total se répartit entre N classes → moins d'exemples par classe (ex. ~200 images/classe sur un dataset de 2 800 images à 14 classes observé lors de la recherche de jeux de données) |
+| Robustesse attendue avec un petit dataset | Plus élevée : moins de risque de sous-apprentissage par classe | Plus faible avec peu de données : risque de confusion inter-classes, faux négatifs plus fréquents sur les classes sous-représentées |
+| Information apportée par une alerte | "Une arme potentielle a été détectée" | "Un couteau a été détecté" (plus précis) |
+| Adéquation avec l'action déclenchée par le système | Suffisante : toute détection déclenche la **même** action (`security_events`, sévérité `critical`, vérification humaine obligatoire) | Le gain d'information n'est pas exploité par la logique métier actuelle — aucune action différenciée par type d'arme n'est prévue |
+| Risque en cas d'erreur de classification | Aucun risque de confondre les *types* d'armes (un seul type possible) | Une arme mal classée (ex. pistolet identifié comme couteau) resterait correctement détectée comme "arme", mais le message d'alerte serait trompeur |
+
+**Conclusion argumentée** : dans un contexte de contrôle d'accès où
+l'action de sécurité est binaire (alerter/vérifier ou non), la classification
+fine par type d'arme n'apporte pas de valeur opérationnelle proportionnelle
+au coût en fiabilité qu'elle impose avec un jeu de données de taille limitée.
+Le choix d'une classe unique est donc justifié par l'usage, pas seulement
+par la disponibilité des données — argument à expliciter ainsi dans le
+mémoire plutôt que de le présenter comme une simple contrainte subie.
+
+*Piste d'ouverture pour la conclusion/perspectives* : si un jeu de données
+plus volumineux (plusieurs milliers d'images par classe) devenait
+disponible, une classification multi-classe redeviendrait pertinente,
+notamment pour adapter la sévérité de l'alerte au type d'arme détecté.
+
+### 3.3 Seuils et paramètres clés
 
 - Tolérance de reconnaissance : distance L2 = 1.128 (valeur recommandée par
   OpenCV Zoo pour des embeddings SFace 128-D normalisés).
@@ -213,7 +246,7 @@ déploiement à valoriser dans le mémoire (chapitre choix techniques).
 - Recherche de personne : intervalle d'échantillonnage 2 s, "cooldown" de
   30 s entre deux observations journalisées (évite le spam de logs).
 
-### 3.3 Limite technique assumée (registre en mémoire)
+### 3.4 Limite technique assumée (registre en mémoire)
 
 Le registre des recherches/surveillances actives est en mémoire dans le
 processus web : il ne survit pas à un redémarrage et ne fonctionne qu'avec
