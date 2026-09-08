@@ -289,14 +289,39 @@ Démarre une surveillance en tâche de fond sur une caméra, avec deux volets :
   > supervision humaine et à d'autres contrôles physiques. Toute alerte doit
   > être vérifiée manuellement avant toute action.
 
-  Pour l'activer :
+  Pour l'activer, entraînez d'abord un modèle local (voir ci-dessous), puis :
 
   ```bash
   pip install -r requirements-weapon-detection.txt   # installe ultralytics (+ torch)
-  # Fournissez un modèle YOLO entraîné pour la détection d'armes (poids .pt),
-  # placé à DOGARI_WEAPON_MODEL_PATH (models/weapon_detection.pt par défaut).
   DOGARI_WEAPON_DETECTION_ENABLED=true python -m dogari.web.app
   ```
+
+  ### Entraîner un modèle localement (recommandé, pas d'API tierce)
+
+  Plutôt que de dépendre d'un modèle GitHub anonyme ou d'une API hébergée
+  (qui romprait le fonctionnement local sans Internet du reste du système),
+  `scripts/train_weapon_detector.py` entraîne un petit modèle YOLOv8 en local
+  à partir d'un jeu de données au format YOLOv8 :
+
+  1. Téléchargez un jeu de données annoté depuis
+     [Roboflow Universe](https://universe.roboflow.com/) (gratuit, sans clé
+     API) — bouton "Download Dataset" → format **YOLOv8**. Par exemple
+     ["Weapon Detection using YOLOv8"](https://universe.roboflow.com/weopon-detection/weapon-detection-using-yolov8)
+     (handgun/shotgun/knife/rifle).
+  2. Lancez l'entraînement (le modèle de base `yolov8n.pt` est téléchargé
+     automatiquement au premier lancement) :
+
+     ```bash
+     pip install -r requirements-weapon-detection.txt
+     python scripts/train_weapon_detector.py chemin/vers/data.yaml --epochs 50
+     ```
+
+  3. Les poids entraînés sont copiés vers `models/weapon_detection.pt`,
+     prêts à être activés (commande ci-dessus).
+
+  **La qualité dépend entièrement du jeu de données choisi** : évaluez le
+  modèle sur des images réelles (avec et sans arme) avant toute utilisation,
+  et gardez à l'esprit l'avertissement ci-dessus quel que soit le résultat.
 
 Utilisation (dashboard, section "Surveillance sécurité", ou API) :
 
