@@ -303,12 +303,23 @@ Démarre une surveillance en tâche de fond sur une caméra, avec deux volets :
   `scripts/train_weapon_detector.py` entraîne un petit modèle YOLOv8 en local
   à partir d'un jeu de données au format YOLOv8 :
 
-  1. Téléchargez un jeu de données annoté depuis
-     [Roboflow Universe](https://universe.roboflow.com/) (gratuit, sans clé
-     API) — bouton "Download Dataset" → format **YOLOv8**. Par exemple
-     ["Weapon Detection using YOLOv8"](https://universe.roboflow.com/weopon-detection/weapon-detection-using-yolov8)
-     (handgun/shotgun/knife/rifle).
-  2. Lancez l'entraînement (le modèle de base `yolov8n.pt` est téléchargé
+  1. Téléchargez un jeu de données annoté au format YOLOv8 (`data.yaml` +
+     `images/`/`labels/`), par exemple depuis
+     [Roboflow Universe](https://universe.roboflow.com/) ou
+     [Kaggle](https://www.kaggle.com/datasets/simuletic/cctv-weapon-dataset)
+     (privilégiez un jeu de données en vue caméra de surveillance, plus
+     représentatif d'un portail réel que des photos rapprochées).
+  2. **Vérifiez/nettoyez le jeu de données** avant l'entraînement
+     (`scripts/clean_weapon_dataset.py`) : images corrompues, labels
+     orphelins ou manquants, fichiers de labels malformés, doublons stricts,
+     et un décompte d'instances par classe. Mode rapport seul par défaut :
+
+     ```bash
+     python scripts/clean_weapon_dataset.py chemin/vers/data.yaml          # rapport uniquement
+     python scripts/clean_weapon_dataset.py chemin/vers/data.yaml --fix    # déplace les fichiers problématiques vers _quarantaine/
+     ```
+
+  3. Lancez l'entraînement (le modèle de base `yolov8n.pt` est téléchargé
      automatiquement au premier lancement) :
 
      ```bash
@@ -316,7 +327,7 @@ Démarre une surveillance en tâche de fond sur une caméra, avec deux volets :
      python scripts/train_weapon_detector.py chemin/vers/data.yaml --epochs 50
      ```
 
-  3. Les poids entraînés sont copiés vers `models/weapon_detection.pt`,
+  4. Les poids entraînés sont copiés vers `models/weapon_detection.pt`,
      prêts à être activés (commande ci-dessus).
 
   **La qualité dépend entièrement du jeu de données choisi** : évaluez le
