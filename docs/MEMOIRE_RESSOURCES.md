@@ -305,27 +305,120 @@ embarqué.
 
 ---
 
-## 5. Suggestions pour la structure du mémoire
+## 5. Structure imposée par l'école (canevas académique ESCEP-Niger)
 
-Basé sur ce qui existe et ce qui manque, une trame possible :
+Confirmée par l'analyse d'un mémoire d'un camarade de promotion (LSN/IDO,
+même école, même diplôme) : ce n'est **pas** une suggestion, c'est un plan
+**strictement imposé** en 3 parties / 6 chapitres — l'auteur le dit
+lui-même : *"Ce mémoire s'organise en trois parties principales
+conformément au canevas académique."* Toute déviation de ce squelette
+(intitulés de parties/chapitres/sections) est donc à éviter ; seul le
+contenu change selon le sujet.
 
-1. **Introduction** — contexte, problématique, objectifs.
-2. **État de l'art** — solutions existantes de contrôle d'accès biométrique,
-   limites, positionnement de Dogari.
-3. **Analyse et spécification** — cahier des charges (voir `PROJECT.md`),
-   choix d'architecture modulaire.
-4. **Conception technique** — architecture (5 modules), modèle de données
-   (portails/rôles/horaires en particulier — c'est le point de conception
-   le plus intéressant à détailler), choix technologiques justifiés (§3.1).
-5. **Réalisation** — parcourir les fonctionnalités (§2), avec extraits de
-   code pertinents et captures d'écran du tableau de bord.
-6. **Validation et résultats** — résultats de `evaluate_recognition.py`
-   (accuracy/FAR/FRR), résultats des tests automatisés, et **idéalement**
-   des résultats d'essais réels (§4.1) une fois effectués.
-7. **Limites et perspectives** — reprendre honnêtement la section 4 de ce
-   document : c'est un standard académique valorisé par les jurys, pas un
-   aveu de faiblesse.
-8. **Conclusion**.
+> **Analyse d'un second mémoire de référence en attente** : le message qui a
+> déclenché cette section mentionnait deux documents, un seul est arrivé.
+> Compléter cette section si le second révèle des variantes.
+
+### 5.1 Squelette exact à reproduire
+
+```
+Pages liminaires : Dédicace, Avant-propos, Remerciements, Résumé, Abstract,
+                    Table des matières, Liste tableaux/figures/abréviations
+
+INTRODUCTION GÉNÉRALE
+
+PREMIÈRE PARTIE — Cadres théorique et méthodologique
+  Chapitre I : CADRE THÉORIQUE
+    1. Problématique
+    2. Objectifs de l'étude (général + spécifiques)
+    3. Hypothèses de recherche (générale + secondaires)
+    4. Pertinence du sujet (scientifique / technologique / sociale)
+    5. Revue critique de la littérature
+  Chapitre II : CADRE MÉTHODOLOGIQUE
+    1. Cadre de l'étude (terrain)
+    2. Type et approche de recherche
+    3. Méthodes de collecte des données
+    4. Échantillonnage
+    5. Techniques d'analyse
+    6. Difficultés rencontrées
+
+DEUXIÈME PARTIE — Cadres organisationnel et conceptuel
+  Chapitre III : CADRE ORGANISATIONNEL (présentation de la structure d'accueil/cas)
+    1. Présentation générale
+    2. Historique et missions
+    3. Organisation, ressources humaines, effectifs
+    4. Moyens matériels et technologiques disponibles
+    5. Contraintes (spécifiques au sujet)
+    6. Justification du choix de cette structure pour le projet
+  Chapitre IV : CADRE CONCEPTUEL (définitions des concepts mobilisés)
+    1-6. Définitions et articulation des concepts clés
+
+TROISIÈME PARTIE — Résultats et discussion
+  Chapitre V : PRÉSENTATION ET ANALYSE DES RÉSULTATS
+    1. Résultats des entretiens qualitatifs
+    2. Résultats du questionnaire quantitatif
+    3. Architecture du système (développement itératif)
+    4. Performance du prototype
+  Chapitre VI : DISCUSSION ET VÉRIFICATION DES HYPOTHÈSES
+    1. Discussion des résultats
+    2. Vérification des hypothèses (tableau récapitulatif)
+    3. Limites de l'étude
+
+RECOMMANDATIONS
+CONCLUSION GÉNÉRALE
+BIBLIOGRAPHIE
+ANNEXES
+```
+
+### 5.2 Ce que ce template implique (au-delà d'un simple rapport technique)
+
+Point essentiel, facile à manquer : ce n'est pas un canevas de rapport
+technique, c'est un canevas de **recherche en sciences appliquées**, avec
+deux exigences fortes qui ne sont pas déjà couvertes par le code/les tests :
+
+1. **Une structure d'accueil réelle** ("Cas de [organisation]") sur laquelle
+   repose tout le Chapitre III. Pour Dogari, c'est **ESCEP-Niger elle-même**
+   (confirmé) — l'établissement sert à la fois d'école et de terrain d'étude,
+   contrairement au mémoire de référence où l'école du diplôme et la
+   structure étudiée étaient deux organisations différentes.
+2. **Une collecte de terrain** (entretiens qualitatifs + questionnaire
+   quantitatif) qui alimente tout le Chapitre V, section 1-2. **Rien de tout
+   cela n'a été fait pour Dogari à ce jour** — seul le système a été
+   construit. C'est le travail restant le plus important, humainement (pas
+   techniquement), avant de pouvoir rédiger le Chapitre III et le Chapitre V
+   en entier.
+
+### 5.3 Mapping chapitre par chapitre — ce qu'on a déjà vs. ce qui manque
+
+| Chapitre | Contenu attendu pour Dogari | Statut |
+|---|---|---|
+| I.1-2 Problématique, objectifs | Contrôle d'accès physique : failles des solutions classiques (badges, codes partagés/perdus), absence de granularité horaire/par-porte, absence de traçabilité — à ancrer si possible dans un constat réel à ESCEP (comment se gère l'accès aujourd'hui ?) | **À rédiger** — le "pourquoi" existe déjà informellement (README/PROJECT.md), à formaliser en problématique + objectifs généraux/spécifiques |
+| I.3 Hypothèses | Ex. : "un système de reconnaissance faciale (YuNet+SFace) atteint une précision suffisante pour un contrôle d'accès fiable" ; "un modèle rôle+horaire par portail permet une restriction fine sans complexité excessive" ; "le système fonctionne en temps réel sur du matériel accessible" ; "le personnel/les étudiants d'ESCEP jugent le système acceptable" | **À formuler** — aucune hypothèse formelle rédigée à ce jour ; la dernière (acceptabilité) nécessite le questionnaire |
+| I.4 Pertinence | Scientifique (IA appliquée à la sécurité physique en contexte à ressources limitées), technologique (architecture modulaire, coût réduit, Raspberry Pi), sociale/institutionnelle (sécurisation des locaux, traçabilité) | **À rédiger**, mais les arguments existent déjà dans README/PROJECT.md |
+| I.5 Revue de littérature | État de l'art contrôle d'accès biométrique, comparaison des approches de reconnaissance faciale, systèmes similaires | **Partiellement prêt** : §3.1 de ce document (pourquoi YuNet/SFace plutôt que dlib) est un point de départ ; il manque une revue plus large (badges RFID, empreinte digitale, autres systèmes faciaux commerciaux) |
+| II (méthodologie) | Approche mixte comme le mémoire de référence : itérations de développement (quantitatif/technique) + entretiens et questionnaire auprès du personnel/étudiants d'ESCEP sur leurs pratiques et attentes actuelles | **À faire entièrement** — guide d'entretien et questionnaire à concevoir (je peux aider à les rédiger) |
+| II.6 Difficultés rencontrées | On en a une vraie liste, concrète et honnête : développement dans un environnement cloud sans caméra/matériel réel, dépendances lourdes bloquées par la politique réseau du bac à sable (GitHub raw, Roboflow, Kaggle inaccessibles), nécessité de tout valider ensuite en local | **Prêt** — reprendre les échanges de cette conversation |
+| III (cadre organisationnel) | Présentation d'ESCEP-Niger : statut, tutelle (Ministère de la Communication, des Postes et de l'Économie Numérique — confirmé par le mémoire de référence, même école), historique, filières, effectifs, ressources, pratiques actuelles de contrôle d'accès, justification du choix | **À collecter** — nécessite des informations factuelles sur l'école (idéalement via un entretien avec l'administration) |
+| IV (cadre conceptuel) | Contrôle d'accès physique (RBAC, moindre privilège), reconnaissance faciale (embeddings, similarité), IA/vision par ordinateur (CNN, YOLO), détection d'anomalies et vidéosurveillance (éthique, cas de la détection d'armes) | **Rédigeable dès maintenant** à partir des §2-3 de ce document |
+| V.1-2 Résultats entretiens/questionnaire | Thèmes récurrents (pratiques actuelles, attentes), statistiques (acceptabilité, habitudes) | **À faire entièrement**, dépend de II |
+| V.3 Architecture (développement itératif) | Quasiment un copier-coller structuré du §2 de ce document : Phases 1-6 (MVP) → Phase 8 (vivacité, anomalies, rapports) → extensions (recherche de personne, foule, armes) → refonte multi-portails/rôles/horaires → tableau de bord à onglets | **Prêt** |
+| V.4 Performance du prototype | Résultats `evaluate_recognition.py` (accuracy/FAR/FRR), résultats des 76 tests automatisés, et **idéalement** des résultats d'essais réels (webcam, portails/rôles/horaires en conditions réelles — voir §4.1) | **Partiellement prêt** — dépend de la validation terrain non encore faite |
+| VI.1-2 Discussion, vérification des hypothèses | Tableau hypothèse/statut/justification, à l'image du Tableau 9 du mémoire de référence | **À rédiger** une fois les hypothèses formulées (I.3) et les résultats disponibles |
+| VI.3 Limites | Reprendre §4 de ce document (validation terrain manquante, détection d'armes non finalisée, Raspberry Pi non validé, pas d'authentification sur le tableau de bord, etc.) | **Prêt** |
+| Recommandations, Conclusion | À rédiger en dernier, dans le même esprit que §4.4 de ce document | **Prêt comme base** |
+
+### 5.4 Leçon de rigueur tirée du mémoire de référence
+
+La Conclusion générale du mémoire analysé affirme *"le prototype IDO a
+démontré une précision de reconnaissance de 91,6 % sur un vocabulaire de
+base de la LSN, avec une latence moyenne de 312 ms"* — alors que le
+Chapitre V/VI dit explicitement l'inverse : aucune évaluation spécifique à
+la LSN n'a été conduite (seule l'ASL a été mesurée), et l'hypothèse
+"corpus LSN" est marquée **NON RÉALISÉE**. Ces deux chiffres n'apparaissent
+nulle part ailleurs dans le document — vraisemblablement un chiffre non
+nettoyé d'un brouillon. **Règle à respecter pour Dogari** : ne jamais faire
+apparaître dans la Conclusion un chiffre qui n'est pas déjà justifié et
+sourcé dans le Chapitre V.
 
 ---
 
