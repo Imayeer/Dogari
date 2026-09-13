@@ -313,18 +313,73 @@ depuis le sandbox (sans caméra réelle disponible ici) :
   `settings.camera_source`) : succès, aucune erreur d'attribut ou de
   signature.
 
-**EN ATTENTE D'EXÉCUTION RÉELLE.** Ce script est interactif et nécessite une
-caméra physique (webcam) : il ne peut pas être exécuté dans ce sandbox
-cloud, qui n'a pas d'accès matériel caméra. À exécuter sur ta machine :
+**Exécuté sur la machine réelle de l'utilisateur** (webcam, 10 essais par
+scénario, seuil configuré `DOGARI_LIVENESS_MOTION_THRESHOLD=1.5`, rafale de
+5 images espacées de 0,15 s) :
 
-```powershell
-git pull origin claude/dogari-access-control-n335v5
-.venv\Scripts\python scripts\test_liveness_scenarios.py --trials 10 --csv liveness.csv
+```
+=== Résumé ===
+reel: 7/8 correctement acceptés comme vivants (faux rejet réel = 1/8)
+photo_imprimee: 0/9 correctement rejetés comme non vivants (ADR = 0/9, attaques acceptées à tort = 9/9)
+photo_ecran: 0/10 correctement rejetés comme non vivants (ADR = 0/10, attaques acceptées à tort = 10/10)
 ```
 
-Coller la sortie terminal complète (résumé final inclus) et joindre
-`liveness.csv` pour que ce rapport soit complété avec les vrais chiffres
-d'ADR et de faux rejet.
+(3 essais sur 30 exclus faute de visage détecté sur la dernière image de la
+rafale — comportement attendu du script, pas une anomalie.)
+
+| Scénario | Essais valides | motion_score (plage) | Verdict |
+|---|---|---|---|
+| Visage réel | 8 | 1,37 – 6,13 | 7/8 acceptés à raison, 1/8 rejeté à tort (12,5 % faux rejet) |
+| Photo imprimée | 9 | 7,07 – 41,03 | 0/9 rejetés (0 % ADR, 100 % acceptées à tort) |
+| Photo sur écran | 10 | 5,59 – 17,55 | 0/10 rejetés (0 % ADR, 100 % acceptées à tort) |
+
+**Analyse (diagnostic avant conclusion, conformément à la note de méthode)** :
+un résultat de 0 % d'ADR sur les deux scénarios d'attaque est en effet
+surprenant et a été vérifié avant d'être retenu comme résultat de fond :
+
+- Le script fonctionne correctement (mêmes fonctions que celles couvertes
+  par les tests automatisés, vérifiées ligne par ligne avant l'exécution —
+  voir vérifications statiques ci-dessus). Ce n'est pas un défaut de
+  l'instrument de mesure.
+- La cause est visible directement dans les scores bruts : les scores de
+  mouvement des **attaques sont systématiquement plus élevés** que ceux du
+  visage réel (7–41 contre 1,4–6,1), soit l'**inverse** de l'hypothèse sur
+  laquelle repose l'algorithme (`vision/liveness.py` suppose qu'une photo
+  statique produit *moins* de mouvement inter-images qu'un visage réel).
+  En pratique, tenir une photo imprimée ou un téléphone à la main introduit
+  un tremblement/déplacement global de l'objet entier (repéré sur toute la
+  zone recadrée du visage), qui dépasse largement le micro-mouvement subtil
+  d'un visage réel immobile (respiration, clignements). C'est un
+  comportement attendu et réaliste d'une tentative d'usurpation réelle
+  tenue à la main — pas un artefact du protocole de test.
+- **Ce n'est donc pas un problème de calibration du seuil** : baisser ou
+  augmenter `DOGARI_LIVENESS_MOTION_THRESHOLD` ne peut pas corriger ce
+  résultat, car les distributions sont inversées et strictement disjointes
+  dans le sens opposé à celui attendu (toute valeur de seuil qui accepte la
+  majorité des essais "réel" légitimes accepterait alors *nécessairement*
+  aussi 100 % des essais d'attaque, puisque leurs scores sont encore plus
+  élevés). Conformément à la note de méthode de
+  `INSTRUCTIONS_VERIFICATION_H3_H4.md`, ce résultat n'a **pas** été corrigé
+  silencieusement en ajustant le seuil après coup — il est rapporté tel
+  quel.
+
+**Conclusion sur H3** : **non confirmée par ce test réel.** La détection de
+vivacité basée sur la différence moyenne de niveaux de gris inter-images,
+telle qu'implémentée, ne fait pas obstacle aux deux scénarios d'attaque
+testés (photo imprimée, photo sur écran) — au contraire, ces attaques sont
+acceptées plus facilement qu'un visage réel légitime, qui subit même un
+taux de faux rejet non négligeable (12,5 %). Ce résultat corrobore et
+précise la limite déjà documentée dans le docstring de `liveness.py`
+("ne protège pas contre une attaque par rejeu vidéo") : la faiblesse ne se
+limite pas au rejeu vidéo, elle s'étend aux présentations statiques les
+plus simples à réaliser. Une évolution vers un modèle anti-usurpation dédié
+(ex. MiniFASNet, texture/profondeur plutôt que mouvement global) est
+nécessaire avant tout déploiement réel s'appuyant sur cette protection —
+point à développer explicitement en discussion (Chapitre VI) comme limite
+assumée du prototype plutôt que comme hypothèse validée.
+
+`liveness.csv` (détail des 30 essais) disponible auprès de l'utilisateur
+pour annexe si le mémoire en a besoin.
 
 ## H4 : autonomie hors connexion
 
@@ -361,28 +416,45 @@ pas à l'installation).
 
 ### Test dynamique, réseau coupé
 
-**EN ATTENTE D'EXÉCUTION RÉELLE.** Ce test nécessite de couper la connexion
-réseau de la machine qui exécute l'application, ce qui n'est pas
-applicable à ce sandbox cloud (dont la connectivité réseau sortante est
-gérée par la politique de l'environnement, pas par l'utilisateur, et dont
-la coupure n'aurait de toute façon aucune valeur probante pour ton
-déploiement réel). À exécuter sur ta machine :
+**Réseau coupé, confirmé réellement** sur la machine de l'utilisateur :
 
-```powershell
-# 1. Couper le Wi-Fi / passer en mode avion, puis :
-ping -c 1 8.8.8.8        # doit échouer
+```
+$ ping -n 1 8.8.8.8
 
-# 2. Réseau toujours coupé :
-.venv\Scripts\python -m dogari.web.app
+Pinging 8.8.8.8 with 32 bytes of data:
+Request timed out.
+
+Ping statistics for 8.8.8.8:
+    Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),
 ```
 
-Puis, réseau toujours coupé : ouvrir `http://localhost:8000` (ou le port
-configuré), tenter une reconnaissance faciale via webcam jusqu'à obtenir
-une décision (autorisé/refusé), vérifier que la décision apparaît bien
-dans les journaux d'accès (tableau de bord ou base SQLite), et générer un
-rapport de synthèse. Noter le résultat de chaque étape (réussi/échoué, avec
-message d'erreur exact en cas d'échec), puis rétablir le réseau et
-confirmer que l'application continue de fonctionner normalement.
+Puis, réseau toujours coupé :
 
-Coller la sortie complète (y compris `ping` échoué) pour compléter cette
-section.
+```
+$ .venv\Scripts\python -m dogari.web.app
+[...]
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Application startup complete.
+```
+
+Le serveur démarre normalement sans connexion réseau sortante (attendu :
+`0.0.0.0:8000` est l'adresse d'écoute du serveur — toutes les interfaces
+locales — pas une adresse à laquelle se connecter depuis le navigateur).
+
+**Anomalie n°5, d'instruction et non de projet** : une première tentative
+d'ouvrir littéralement `http://0.0.0.0:8000/` dans le navigateur a échoué
+(`ERR_ADDRESS_INVALID` / "this site can't be reached") — `0.0.0.0` est une
+adresse d'écoute valide côté serveur (« toutes les interfaces »), mais
+n'est pas une destination valide côté client sous Windows/Chrome. C'est une
+imprécision de ces instructions de vérification (qui affichaient l'URL
+telle qu'imprimée par uvicorn), pas un défaut de l'application. Correctif :
+utiliser `http://localhost:8000` (ou `http://127.0.0.1:8000`) — accéder à
+un serveur qui écoute sur `0.0.0.0` en visant `localhost` fonctionne
+normalement, y compris hors ligne, puisque `localhost` ne sort jamais de
+la machine.
+
+**EN ATTENTE** : la suite du test fonctionnel (ouverture du tableau de bord
+via `http://localhost:8000`, reconnaissance faciale complète aboutissant à
+une décision, vérification de la journalisation, génération d'un rapport de
+synthèse, puis rétablissement du réseau) reste à effectuer avec l'URL
+corrigée.
