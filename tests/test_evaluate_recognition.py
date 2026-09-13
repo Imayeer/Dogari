@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from dogari.storage.models import User, encode_embedding
-from evaluate_recognition import UNKNOWN_LABEL, evaluate_probes
+from evaluate_recognition import UNKNOWN_LABEL, evaluate_probes, sweep_tolerances
 
 
 def _gallery_user(user_id: int, name: str, embedding: np.ndarray) -> User:
@@ -65,3 +65,17 @@ def test_evaluate_probes_with_no_impostor_attempts_has_zero_far():
 
     assert summary.impostor_attempts == []
     assert summary.far == 0.0
+
+
+def test_sweep_tolerances_brackets_the_configured_default():
+    """Une plage figée (ex. 0.30-0.70) devient fausse dès que le défaut change (régression réelle :
+    DOGARI_RECOGNITION_TOLERANCE=1.128 n'était atteint par aucune valeur de l'ancienne plage)."""
+    values = sweep_tolerances(1.128)
+
+    assert min(values) < 1.128 < max(values)
+
+
+def test_sweep_tolerances_never_goes_below_a_sane_floor():
+    values = sweep_tolerances(center=0.1, span=0.4)
+
+    assert min(values) >= 0.05

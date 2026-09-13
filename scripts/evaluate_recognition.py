@@ -42,7 +42,20 @@ from dogari.vision.recognizer import FaceRecognizer
 
 UNKNOWN_LABEL = "unknown"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
-DEFAULT_SWEEP_TOLERANCES = [round(0.3 + 0.05 * i, 2) for i in range(9)]
+
+
+def sweep_tolerances(center: float, span: float = 0.4, step: float = 0.05) -> list[float]:
+    """Plage de tolérances balayée par --sweep, centrée sur `center` (par défaut `settings.recognition_tolerance`).
+
+    Une plage fixe (ex. 0.30-0.70) devient obsolète dès que le seuil par défaut
+    change : ce fut le cas ici, le seuil recommandé par OpenCV Zoo pour SFace
+    étant 1.128, hors de l'ancienne plage testée - toutes les tolérances
+    balayées étaient alors trop strictes pour jamais accepter une correspondance
+    correcte (FRR à 100 % quel que soit le seuil testé).
+    """
+    start = max(0.05, round(center - span, 2))
+    count = int(round((span * 2) / step)) + 1
+    return [round(start + step * i, 2) for i in range(count)]
 
 
 @dataclass
@@ -240,6 +253,14 @@ def write_csv(summary: EvaluationSummary, path: Path) -> None:
             writer.writerow([r.image_path, r.true_label, r.predicted_label or "", r.similarity_score, correct])
 
 
+def write_sweep_csv(rows: list[tuple[float, EvaluationSummary]], path: Path) -> None:
+    with path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv_module.writer(csv_file)
+        writer.writerow(["tolerance", "accuracy", "far", "frr"])
+        for tolerance, summary in rows:
+            writer.writerow([tolerance, summary.accuracy, summary.far, summary.frr])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Évalue la précision de la reconnaissance faciale de Dogari sur un jeu de test étiqueté."
@@ -254,7 +275,10 @@ def main() -> None:
     parser.add_argument(
         "--sweep",
         action="store_true",
-        help="Teste plusieurs seuils (0.30 à 0.70) pour trouver le meilleur compromis FAR/FRR",
+        help=(
+            "Teste plusieurs seuils de tolérance (centrés sur DOGARI_RECOGNITION_TOLERANCE) "
+            "pour trouver le meilleur compromis FAR/FRR"
+        ),
     )
     parser.add_argument("--csv", type=Path, default=None, help="Exporte les résultats détaillés au format CSV")
     args = parser.parse_args()
@@ -279,9 +303,14 @@ def main() -> None:
     if args.sweep:
         print("\n--- Balayage des seuils de tolérance ---")
         print(f"{'Tolérance':>10} {'Accuracy':>10} {'FAR':>8} {'FRR':>8}")
-        for tolerance in DEFAULT_SWEEP_TOLERANCES:
+        rows: list[tuple[float, EvaluationSummary]] = []
+        for tolerance in sweep_tolerances(settings.recognition_tolerance):
             summary = evaluate_probes(gallery, raw_probes, tolerance)
             print(f"{tolerance:>10.2f} {summary.accuracy:>9.1%} {summary.far:>7.1%} {summary.frr:>7.1%}")
+            rows.append((tolerance, summary))
+        if args.csv:
+            write_sweep_csv(rows, args.csv)
+            print(f"\nRésultats du balayage exportés vers {args.csv}")
         return
 
     tolerance = args.tolerance if args.tolerance is not None else settings.recognition_tolerance
