@@ -94,6 +94,14 @@ class Settings:
     recognition_tolerance: float = field(
         default_factory=lambda: _env_float("DOGARI_RECOGNITION_TOLERANCE", 1.128)
     )
+    # Dimension max (plus grand côté) avant détection : sur des photos très haute résolution
+    # (ex. selfies de téléphone), YuNet retourne des scores de confiance plus faibles et peut
+    # manquer des visages pourtant nets - un redimensionnement préalable améliore la détection
+    # (constaté empiriquement : score de confiance passé de 0,89 à 0,93 sur un même visage après
+    # réduction à ~640px). Les coordonnées retournées sont ensuite rescalées vers l'image d'origine.
+    max_detection_dimension: int = field(
+        default_factory=lambda: _env_int("DOGARI_MAX_DETECTION_DIMENSION", 640)
+    )
 
     # Détection de vivacité (anti-usurpation par photo/écran, voir vision/liveness.py)
     liveness_enabled: bool = field(default_factory=lambda: _env_bool("DOGARI_LIVENESS_ENABLED", True))

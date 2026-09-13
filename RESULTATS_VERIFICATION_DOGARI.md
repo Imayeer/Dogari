@@ -47,35 +47,30 @@ bloquant.
 
 ## Modèles téléchargés
 
+**Depuis le sandbox Claude Code** : ÉCHEC. `403 Forbidden` sur `github.com`
+(même blocage déjà rencontré dans cette session pour Roboflow Universe et
+Kaggle lors de la recherche d'un jeu de données pour la détection d'armes) :
+
 ```
 $ .venv/bin/python scripts/download_models.py
 Téléchargement de face_detection_yunet_2023mar.onnx depuis
 https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx ...
 [ERREUR] Échec du téléchargement de face_detection_yunet_2023mar.onnx : HTTP Error 403: Forbidden
-
-Téléchargement de face_recognition_sface_2021dec.onnx depuis
-https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx ...
 [ERREUR] Échec du téléchargement de face_recognition_sface_2021dec.onnx : HTTP Error 403: Forbidden
-
-$ ls -la models/
-total 8
-drwxr-xr-x 2 root root 4096 ... .
-drwxr-xr-x 11 root root 4096 ... ..
--rw-r--r-- 1 root root    0 ... .gitkeep
 ```
 
-**ÉCHEC.** `403 Forbidden` sur `github.com` — cet environnement bloque le
-trafic sortant vers ce domaine (même blocage déjà rencontré dans cette
-session pour Roboflow Universe et Kaggle lors de la recherche d'un jeu de
-données pour la détection d'armes). Aucun fichier `.onnx` réel obtenu ;
-aucune valeur de taille de fichier n'est donc rapportée ici (voir mise en
-garde en introduction : aucun résultat inventé).
+**Depuis la machine réelle de l'utilisateur** (réseau standard) : SUCCÈS.
+Tailles confirmées, correspondant exactement aux valeurs attendues :
 
-**Conséquence directe** : les étapes 4 (évaluation FAR/FRR/accuracy) et 5
-(latence) ci-dessous, qui nécessitent les modèles réels pour exécuter
-`detect_single_face`/`generate_embedding`, ne peuvent pas être exécutées
-dans cet environnement tant que les fichiers `.onnx` n'y sont pas présents
-d'une manière ou d'une autre (voir section "Prochaine étape").
+```
+$ dir models\
+face_detection_yunet_2023mar.onnx       232589 octets
+face_recognition_sface_2021dec.onnx   38696353 octets
+```
+
+(232 589 octets = exactement la taille attendue ; 38 696 353 octets ≈ 36,9 Mo,
+cohérent avec les ~36 Mo annoncés dans le README — ce sont bien les modèles
+réels, pas des pointeurs Git LFS.)
 
 ## Tests automatisés
 
@@ -93,47 +88,80 @@ modèles réels : les appels de vision (`detect_single_face`,
 ce qui explique qu'ils ne soient pas affectés par l'échec de téléchargement
 ci-dessus.
 
+## Anomalie détectée et corrigée : échec de détection sur photos haute résolution
+
+Première tentative d'évaluation avec deux vraies photos de référence
+(`gallery/amino/`, `gallery/soraya/`) : les deux ont été rejetées avec
+`[AVERTISSEMENT] Aucun visage détecté` malgré des visages nets, droits et
+bien éclairés à l'inspection visuelle. Diagnostic avec
+`scripts/debug_face_detection.py` sur la photo de `soraya`
+(1408×1470 px) :
+
+```
+1. Taille originale, seuil 0.9 (défaut)       visages_trouvés=0  meilleur_score=None
+2. Taille originale, seuil 0.3                visages_trouvés=1  meilleur_score=0.889
+3. Redimensionnée ~640px, seuil 0.9           visages_trouvés=1  meilleur_score=0.934
+4. Redimensionnée ~640px, seuil 0.3           visages_trouvés=1  meilleur_score=0.934
+```
+
+**Cause identifiée** : à pleine résolution, YuNet retourne un score de
+confiance (0,889) juste sous le seuil par défaut (0,90) utilisé par
+`cv2.FaceDetectorYN` — le visage est bien localisé mais rejeté de justesse.
+Une fois l'image réduite à ~640 px de plus grand côté, le même visage est
+détecté avec un score plus élevé (0,934). Ce n'était pas qu'un problème de
+jeu de test : un utilisateur réel s'inscrivant via le tableau de bord avec
+une photo de téléphone haute résolution aurait rencontré le même échec
+silencieux.
+
+**Correctif appliqué** : `vision/detector.py` réduit désormais
+automatiquement toute image dont le plus grand côté dépasse
+`DOGARI_MAX_DETECTION_DIMENSION` (640 px par défaut) avant détection, puis
+rescale les coordonnées retournées (bbox + 5 points de repère) vers les
+dimensions de l'image d'origine, pour rester compatibles avec
+`embeddings.generate_embedding` qui aligne le visage sur l'image originale.
+Trois nouveaux tests (`tests/test_detector.py`) couvrent ce comportement,
+dont un avec les dimensions exactes (1408×1470) de la photo ayant révélé le
+problème. Les 79 tests automatisés passent après correction.
+
 ## Évaluation de la reconnaissance (FAR/FRR/accuracy)
 
-**NON EXÉCUTÉE.** Deux blocages cumulés :
-1. Pas de modèles `.onnx` réels dans cet environnement (voir ci-dessus).
-2. Pas de jeu de photos réelles fourni (`test_dogari/gallery` /
-   `test_dogari/probes`) — conformément à l'instruction de ne jamais
-   fabriquer de fausses images, aucun jeu de données synthétique n'a été
-   créé pour contourner ce manque.
+**EN ATTENTE DE NOUVEL ESSAI**, avec le correctif ci-dessus. La toute
+première exécution a échoué à charger la moindre image de galerie (cause
+identifiée et corrigée ci-dessus) ; aucune métrique FAR/FRR/accuracy n'a
+donc encore pu être calculée. Un nouvel essai avec les mêmes photos et le
+code à jour (`git pull`) est nécessaire pour obtenir ces chiffres.
 
 ## Latence et ressources
 
-**NON EXÉCUTÉE**, même cause : nécessite les modèles réels et au moins une
-image de test. Le script `scripts/benchmark_latency.py` a toutefois été
-créé dans le dépôt (voir commit associé), prêt à être exécuté dès que les
-modèles et des images seront disponibles — y compris sur le Raspberry Pi
-cible, ce qui serait la mesure la plus pertinente pour le mémoire.
+**NON EXÉCUTÉE À CE STADE**, en attente d'un jeu de photos qui charge
+correctement (voir ci-dessus). `scripts/benchmark_latency.py` est prêt à
+être exécuté dès que possible — idéalement sur le Raspberry Pi cible, ce
+qui donnerait la mesure la plus pertinente pour le mémoire.
 
 ## Échecs ou anomalies rencontrés
 
-- **Téléchargement des modèles YuNet/SFace : `HTTP Error 403: Forbidden`**
-  sur `github.com/opencv/opencv_zoo/raw/main/...`. Bloqué par la politique
-  réseau sortante de cet environnement sandbox, pas par le projet
-  lui-même — le script fonctionne normalement sur un réseau standard (c'est
-  ainsi qu'il a été conçu et documenté dans le README).
-- Aucune autre anomalie : installation et tests automatisés se sont
-  déroulés sans accroc.
+- **Téléchargement des modèles depuis le sandbox Claude Code : `HTTP Error
+  403: Forbidden`** sur `github.com/opencv/opencv_zoo/raw/main/...`. Bloqué
+  par la politique réseau sortante de cet environnement sandbox, pas par le
+  projet lui-même — confirmé en réussissant le téléchargement sur une
+  machine réseau standard (voir "Modèles téléchargés" ci-dessus).
+- **Échec de détection de visage sur deux photos réelles haute résolution**
+  (score de confiance juste sous le seuil par défaut) — cause identifiée et
+  corrigée dans le code, voir section dédiée ci-dessus. C'est l'anomalie la
+  plus significative de cette vérification : elle aurait affecté de vrais
+  utilisateurs en production, pas seulement ce test.
+- Installation et suite de tests automatisés (avant comme après le
+  correctif) : aucune anomalie.
 
 ## Prochaine étape pour compléter ce rapport
 
-Deux options, non exclusives :
+Relancer, avec le code à jour (`git pull`) et les mêmes photos :
 
-1. **Télécharger les modèles manuellement et me les transmettre** (via
-   upload dans cette conversation) : les deux fichiers sont accessibles
-   depuis n'importe quel réseau standard aux URLs ci-dessus, et pèsent
-   ~230 Ko et ~36 Mo. Avec eux, plus 2-3 photos réelles (voir structure
-   `gallery/`/`probes/` dans les instructions), je peux exécuter les
-   étapes 4 et 5 dans cette session et compléter ce rapport avec de
-   vraies mesures — sur cette VM, pas sur Raspberry Pi (à noter comme
-   telles dans le mémoire).
-2. **Exécuter les étapes 2, 4, 5 sur ta machine** (ou idéalement le
-   Raspberry Pi cible) en suivant `INSTRUCTIONS_VERIFICATION_DOGARI.md`,
-   et me transmettre les sorties obtenues pour que je les intègre ici.
-   C'est la seule option qui donne des chiffres de latence réellement
-   représentatifs de la plateforme visée par le mémoire.
+```powershell
+.venv\Scripts\python scripts\evaluate_recognition.py test_dogari --sweep --csv resultats_recognition.csv
+.venv\Scripts\python scripts\benchmark_latency.py test_dogari\probes --runs 50 --csv latence.csv
+```
+
+et transmettre les sorties (+ contenu des deux CSV) pour intégration finale
+dans ce rapport, le Chapitre V (résultats) et le Chapitre VI (vérification
+de H1/H2) du mémoire.

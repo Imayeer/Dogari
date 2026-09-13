@@ -42,11 +42,38 @@ def _get_detector(input_size: tuple[int, int]):
 
 
 def detect_faces(frame: np.ndarray) -> list[FaceDetection]:
-    """Détecte les visages présents dans une image (format BGR OpenCV)."""
+    """Détecte les visages présents dans une image (format BGR OpenCV).
+
+    Les images dont le plus grand côté dépasse `settings.max_detection_dimension`
+    sont réduites avant détection (YuNet est moins confiant sur des photos très
+    haute résolution, typiquement des selfies de téléphone - voir le commentaire
+    dans `core/config.py`) ; les coordonnées retournées sont rescalées vers les
+    dimensions de l'image d'origine, pour rester utilisables par les appelants
+    (ex. `embeddings.generate_embedding`, qui aligne le visage sur `frame`).
+    """
+    import cv2  # import différé : dépendance lourde optionnelle
+
     height, width = frame.shape[:2]
-    detector = _get_detector((width, height))
-    _, faces = detector.detect(frame)
-    return list(faces) if faces is not None else []
+
+    scale = 1.0
+    detection_frame = frame
+    largest_side = max(width, height)
+    if largest_side > settings.max_detection_dimension:
+        scale = settings.max_detection_dimension / largest_side
+        detection_frame = cv2.resize(frame, (round(width * scale), round(height * scale)))
+
+    det_height, det_width = detection_frame.shape[:2]
+    detector = _get_detector((det_width, det_height))
+    _, faces = detector.detect(detection_frame)
+    if faces is None:
+        return []
+
+    if scale != 1.0:
+        faces = faces.copy()
+        faces[:, 0:14:2] /= scale  # coordonnées x (bbox + 5 points de repère)
+        faces[:, 1:14:2] /= scale  # coordonnées y
+
+    return list(faces)
 
 
 def detect_single_face(frame: np.ndarray) -> FaceDetection | None:

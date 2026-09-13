@@ -75,6 +75,7 @@ Le comportement du système peut être ajusté via des variables d'environnement
 | `DOGARI_YUNET_MODEL_PATH` | Chemin du modèle de détection YuNet (`.onnx`) | `models/face_detection_yunet_2023mar.onnx` |
 | `DOGARI_SFACE_MODEL_PATH` | Chemin du modèle de reconnaissance SFace (`.onnx`) | `models/face_recognition_sface_2021dec.onnx` |
 | `DOGARI_RECOGNITION_TOLERANCE` | Seuil de distance L2 pour la reconnaissance faciale (plus petit = plus strict) | `1.128` |
+| `DOGARI_MAX_DETECTION_DIMENSION` | Plus grand côté (px) au-delà duquel l'image est réduite avant détection (YuNet perd en confiance sur des photos très haute résolution, ex. selfies de téléphone) | `640` |
 | `DOGARI_LIVENESS_ENABLED` | Active la détection de vivacité (anti-photo/écran) avant la reconnaissance | `true` |
 | `DOGARI_LIVENESS_FRAME_COUNT` | Nombre d'images capturées en rafale pour l'analyse de mouvement | `5` |
 | `DOGARI_LIVENESS_CAPTURE_INTERVAL` | Délai (secondes) entre deux images de la rafale | `0.15` |
