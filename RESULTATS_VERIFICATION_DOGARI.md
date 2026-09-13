@@ -453,8 +453,43 @@ un serveur qui écoute sur `0.0.0.0` en visant `localhost` fonctionne
 normalement, y compris hors ligne, puisque `localhost` ne sort jamais de
 la machine.
 
-**EN ATTENTE** : la suite du test fonctionnel (ouverture du tableau de bord
-via `http://localhost:8000`, reconnaissance faciale complète aboutissant à
-une décision, vérification de la journalisation, génération d'un rapport de
-synthèse, puis rétablissement du réseau) reste à effectuer avec l'URL
-corrigée.
+Avec l'URL corrigée (`http://localhost:8000`), le tableau de bord s'ouvre
+normalement réseau coupé. Suite du test fonctionnel, réseau toujours coupé,
+**confirmée par l'utilisateur** (réponses qualitatives oui/non ; pas de
+sortie brute/capture d'écran collée pour cette partie, contrairement aux
+étapes précédentes de ce rapport — à noter comme limite méthodologique de
+cette dernière étape) :
+
+| Étape | Résultat |
+|---|---|
+| Reconnaissance faciale aboutissant à une décision (autorisé/refusé) | ✅ Oui |
+| Décision journalisée (tableau de bord / base SQLite) | ✅ Oui |
+| Génération d'un rapport de synthèse | ✅ Oui |
+| Réseau rétabli, application toujours fonctionnelle (pas d'effet de bord) | ✅ Oui |
+
+**Conclusion sur H4 : confirmée.** L'audit statique (aucun appel réseau
+dans `src/dogari/`) et le test dynamique réseau coupé (démarrage, tableau
+de bord, décision de reconnaissance, journalisation, rapport de synthèse,
+tous fonctionnels sans connexion Internet, puis fonctionnement normal après
+rétablissement du réseau) convergent : Dogari fonctionne bien de façon
+autonome, hors ligne, en usage normal. Seule réserve : la dépendance réseau
+de `scripts/download_models.py`, mais elle est limitée à l'installation
+initiale et n'affecte pas le fonctionnement en production, conformément à
+la formulation de H4.
+
+## Conclusion générale (H1-H4)
+
+| Hypothèse | Statut | Résumé |
+|---|---|---|
+| H1 — Reconnaissance faciale fiable | **Confirmée** | 100 % accuracy (3/3), 0 % FAR, 0 % FRR — échantillon restreint, à élargir |
+| H2 — Latence compatible avec un usage pratique | **Confirmée** | 32,79 ms en moyenne, 42,09 ms au P95 — mesuré sur PC, optimiste vs Raspberry Pi 5 cible |
+| H3 — Détection de vivacité anti-usurpation | **Non confirmée** | 0 % ADR sur photo imprimée et photo écran ; défaut algorithmique identifié, pas de correction silencieuse appliquée |
+| H4 — Autonomie complète hors connexion | **Confirmée** | Aucun appel réseau applicatif, fonctionnement complet (dashboard, reconnaissance, journalisation, rapport) réseau coupé |
+
+Sur 4 hypothèses testées avec des données réelles, 3 sont confirmées et 1
+(H3) ne l'est pas en l'état — un résultat de vérification honnête et
+défendable en soutenance, plus solide qu'une série de confirmations sans
+aucune limite identifiée. La démarche complète (5 anomalies réelles
+trouvées et corrigées dans l'outillage de test ou documentées comme
+limites du système, jamais masquées) est elle-même une preuve de rigueur
+méthodologique à valoriser dans le mémoire, au-delà des seuls chiffres.
