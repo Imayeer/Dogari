@@ -123,20 +123,74 @@ Trois nouveaux tests (`tests/test_detector.py`) couvrent ce comportement,
 dont un avec les dimensions exactes (1408×1470) de la photo ayant révélé le
 problème. Les 79 tests automatisés passent après correction.
 
+## Anomalie n°2 détectée et corrigée : plage de balayage `--sweep` obsolète
+
+Une fois la détection corrigée, `--sweep` (plage historique 0,30-0,70)
+donnait 0 % d'accuracy à toutes les tolérances testées, alors que le seuil
+réellement configuré (`DOGARI_RECOGNITION_TOLERANCE=1.128`) n'était jamais
+atteint par cette plage : ce n'était pas un échec de reconnaissance, mais
+une plage de test devenue obsolète. Corrigé : `sweep_tolerances()` centre
+désormais la plage sur le seuil réellement configuré.
+
+De plus, `--sweep --csv fichier.csv` (l'usage exact recommandé par ces
+instructions) n'écrivait jamais le fichier CSV (retour anticipé avant le
+code d'export). Corrigé avec un format CSV dédié au balayage.
+
+## Anomalie n°3 détectée et corrigée : dossier `probes/inconnu/` mal interprété
+
+Premier essai avec le seuil corrigé (1,128) sur 3 photos réelles
+(`probes/amino`, `probes/soraya`, `probes/inconnu`) : accuracy 66,7 %, FRR
+33,3 %. Sortie détaillée (`resultats_detail.csv`) :
+
+```
+image_path,true_label,predicted_label,similarity_score,correct
+probes\amino\IMG_0162.png,amino,amino,0.5568675527653216,True
+probes\inconnu\IMG_0158.png,inconnu,,0.3440971319076338,False
+probes\soraya\IMG_0165.png,soraya,soraya,0.5632662159255389,True
+```
+
+**Cause** : le script ne reconnaissait que le mot anglais littéral
+`"unknown"` comme dossier spécial désignant des imposteurs à rejeter —
+seule incohérence linguistique dans un projet entièrement documenté en
+français. Le dossier `probes/inconnu/` était donc traité comme une
+véritable identité à reconnaître ; l'absence de correspondance
+(`predicted_label` vide), qui est en réalité un **rejet correct**, était
+comptée comme un échec.
+
+**Résultat réel, correctement interprété** : **3/3 correct (100 %)** — 2
+acceptations légitimes (amino, soraya) + 1 rejet correct d'un inconnu, 0
+faux positif, 0 faux négatif. Corrigé dans le code : `probes/inconnu/`
+(et variantes "inconnue"/"inconnus", insensible à la casse) est désormais
+reconnu au même titre que `probes/unknown/`. `load_gallery` explique aussi
+désormais pourquoi un dossier "inconnu" placé par erreur dans `gallery/`
+est ignoré (une personne inconnue n'a par définition pas de photo de
+référence).
+
 ## Évaluation de la reconnaissance (FAR/FRR/accuracy)
 
-**EN ATTENTE DE NOUVEL ESSAI**, avec le correctif ci-dessus. La toute
-première exécution a échoué à charger la moindre image de galerie (cause
-identifiée et corrigée ci-dessus) ; aucune métrique FAR/FRR/accuracy n'a
-donc encore pu être calculée. Un nouvel essai avec les mêmes photos et le
-code à jour (`git pull`) est nécessaire pour obtenir ces chiffres.
+**Résultat obtenu (après les trois correctifs ci-dessus), 3 photos, tolérance 1,128** :
+
+| Métrique | Valeur |
+|---|---|
+| Accuracy | **100 %** (3/3) |
+| FAR (faux positifs) | 0 % |
+| FRR (faux négatifs) | 0 % |
+| Vraies acceptations | 2 (amino, soraya) |
+| Vrais rejets | 1 (inconnu) |
+
+**À noter pour le mémoire** : échantillon très restreint (2 identités
+connues, 1 inconnue, 1 photo de probe chacune) — largement insuffisant
+pour une conclusion statistique robuste (voir limites déjà documentées
+dans `docs/MEMOIRE_RESSOURCES.md`), mais suffisant pour valider que le
+pipeline fonctionne correctement de bout en bout sur des photos réelles,
+une fois les trois anomalies ci-dessus corrigées. Une évaluation avec
+davantage de personnes et de photos par personne resterait à faire pour
+un chiffre d'accuracy réellement représentatif.
 
 ## Latence et ressources
 
-**NON EXÉCUTÉE À CE STADE**, en attente d'un jeu de photos qui charge
-correctement (voir ci-dessus). `scripts/benchmark_latency.py` est prêt à
-être exécuté dès que possible — idéalement sur le Raspberry Pi cible, ce
-qui donnerait la mesure la plus pertinente pour le mémoire.
+**EN ATTENTE D'EXÉCUTION.** `scripts/benchmark_latency.py` est prêt (code à
+jour, aucun blocage connu) mais aucune sortie n'a encore été transmise.
 
 ## Échecs ou anomalies rencontrés
 
@@ -147,21 +201,27 @@ qui donnerait la mesure la plus pertinente pour le mémoire.
   machine réseau standard (voir "Modèles téléchargés" ci-dessus).
 - **Échec de détection de visage sur deux photos réelles haute résolution**
   (score de confiance juste sous le seuil par défaut) — cause identifiée et
-  corrigée dans le code, voir section dédiée ci-dessus. C'est l'anomalie la
-  plus significative de cette vérification : elle aurait affecté de vrais
-  utilisateurs en production, pas seulement ce test.
-- Installation et suite de tests automatisés (avant comme après le
-  correctif) : aucune anomalie.
+  corrigée. C'est l'anomalie la plus significative des trois : elle aurait
+  affecté de vrais utilisateurs en production, pas seulement ce test.
+- **Plage de balayage `--sweep` obsolète** (0,30-0,70, n'atteignant jamais
+  le seuil réellement configuré 1.128) — corrigée, désormais centrée sur
+  `DOGARI_RECOGNITION_TOLERANCE`. Le même bug empêchait aussi `--csv`
+  d'écrire un fichier en mode `--sweep`.
+- **Dossier `probes/inconnu/` non reconnu** (seul le mot anglais "unknown"
+  était accepté) — un rejet correct était compté comme un échec, faussant
+  l'accuracy rapportée (66,7 % au lieu du 100 % réel). Corrigé : les alias
+  français sont désormais acceptés.
+- Installation et suite de tests automatisés : aucune anomalie, à aucune
+  étape.
 
 ## Prochaine étape pour compléter ce rapport
 
-Relancer, avec le code à jour (`git pull`) et les mêmes photos :
+Il ne manque plus que la latence. Avec le code à jour (`git pull`) :
 
 ```powershell
-.venv\Scripts\python scripts\evaluate_recognition.py test_dogari --sweep --csv resultats_recognition.csv
 .venv\Scripts\python scripts\benchmark_latency.py test_dogari\probes --runs 50 --csv latence.csv
 ```
 
-et transmettre les sorties (+ contenu des deux CSV) pour intégration finale
+et transmettre la sortie (+ contenu du CSV) pour intégration finale
 dans ce rapport, le Chapitre V (résultats) et le Chapitre VI (vérification
 de H1/H2) du mémoire.
