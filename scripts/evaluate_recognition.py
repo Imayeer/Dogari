@@ -41,6 +41,11 @@ from dogari.storage.models import User, encode_embedding
 from dogari.vision.recognizer import FaceRecognizer
 
 UNKNOWN_LABEL = "unknown"
+# Alias reconnus pour le dossier d'imposteurs/inconnus dans probes/ : le reste du projet est
+# entièrement en français, donc n'accepter que l'anglais "unknown" est une source d'erreur
+# silencieuse (un dossier "inconnu" est alors traité comme une vraie identité à reconnaître,
+# et un rejet correct compte à tort comme un échec - constaté en conditions réelles).
+UNKNOWN_LABEL_ALIASES = {"unknown", "inconnu", "inconnue", "inconnus"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
 
 
@@ -165,6 +170,13 @@ def load_gallery(gallery_dir: Path) -> list[User]:
 
     gallery: list[User] = []
     for index, person_dir in enumerate(sorted(p for p in gallery_dir.iterdir() if p.is_dir()), start=1):
+        if person_dir.name.strip().lower() in UNKNOWN_LABEL_ALIASES:
+            print(
+                f"[AVERTISSEMENT] '{person_dir.name}' ignoré dans gallery/ : une personne "
+                f"'inconnue' n'a pas de photo de référence par définition - placez plutôt ses "
+                f"photos dans probes/{UNKNOWN_LABEL}/."
+            )
+            continue
         embeddings = []
         for image_path in _iter_images(person_dir):
             frame = cv2.imread(str(image_path))
@@ -203,6 +215,7 @@ def load_probes(probes_dir: Path) -> list[tuple[str, np.ndarray, str]]:
 
     probes: list[tuple[str, np.ndarray, str]] = []
     for label_dir in sorted(p for p in probes_dir.iterdir() if p.is_dir()):
+        label = UNKNOWN_LABEL if label_dir.name.strip().lower() in UNKNOWN_LABEL_ALIASES else label_dir.name
         for image_path in _iter_images(label_dir):
             frame = cv2.imread(str(image_path))
             if frame is None:
@@ -213,7 +226,7 @@ def load_probes(probes_dir: Path) -> list[tuple[str, np.ndarray, str]]:
                 print(f"[AVERTISSEMENT] Aucun visage détecté, image ignorée : {image_path}")
                 continue
             embedding = generate_embedding(frame, face_location)
-            probes.append((label_dir.name, embedding, str(image_path)))
+            probes.append((label, embedding, str(image_path)))
     return probes
 
 
