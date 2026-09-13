@@ -290,3 +290,99 @@ automatisés (76 → 83 tests). Après correction :
 Ce rapport peut être intégré tel quel (ou résumé) dans le Chapitre V
 (présentation et analyse des résultats) et le Chapitre VI (discussion et
 vérification des hypothèses) du mémoire.
+
+---
+
+# Vérification de H3 (vivacité) et H4 (autonomie hors ligne)
+
+> Suite exécutée à partir de `INSTRUCTIONS_VERIFICATION_H3_H4.md`, après
+> H1/H2 déjà confirmées ci-dessus.
+
+## H3 : détection de vivacité
+
+`scripts/test_liveness_scenarios.py` a été créé dans le dépôt, conforme au
+contenu fourni par les instructions. Vérifications statiques effectuées
+depuis le sandbox (sans caméra réelle disponible ici) :
+
+- `python -m py_compile scripts/test_liveness_scenarios.py` : succès.
+- Import du module et résolution de toutes les dépendances
+  (`dogari.vision.camera.Camera`, `dogari.vision.liveness.check_liveness`,
+  `dogari.core.exceptions.CameraError`, `dogari.vision.detector.detect_single_face`,
+  et les réglages `settings.liveness_frame_count` /
+  `settings.liveness_capture_interval` / `settings.liveness_motion_threshold` /
+  `settings.camera_source`) : succès, aucune erreur d'attribut ou de
+  signature.
+
+**EN ATTENTE D'EXÉCUTION RÉELLE.** Ce script est interactif et nécessite une
+caméra physique (webcam) : il ne peut pas être exécuté dans ce sandbox
+cloud, qui n'a pas d'accès matériel caméra. À exécuter sur ta machine :
+
+```powershell
+git pull origin claude/dogari-access-control-n335v5
+.venv\Scripts\python scripts\test_liveness_scenarios.py --trials 10 --csv liveness.csv
+```
+
+Coller la sortie terminal complète (résumé final inclus) et joindre
+`liveness.csv` pour que ce rapport soit complété avec les vrais chiffres
+d'ADR et de faux rejet.
+
+## H4 : autonomie hors connexion
+
+### Audit statique du code
+
+Exécuté réellement dans ce sandbox (ne nécessite ni caméra ni coupure
+réseau) :
+
+```
+$ grep -rn "requests\.\|urllib\.request\|httpx\.\(Client\|get\|post\)\|socket\." src/dogari/
+(aucune correspondance)
+```
+
+**Aucune dépendance réseau dans `src/dogari/`** (le code applicatif
+exécuté en fonctionnement normal) : confirmé, résultat conforme à H4.
+
+Comme anticipé par les instructions, `scripts/download_models.py` contient
+bien un appel réseau, mais c'est un script d'installation à part, jamais
+importé ni exécuté par l'application elle-même :
+
+```
+$ grep -rln "requests\.\|urllib\.request\|httpx\.\(Client\|get\|post\)\|socket\." scripts/
+scripts/download_models.py
+
+$ grep -n "requests\.\|urllib\.request\|httpx\.\(Client\|get\|post\)\|socket\." scripts/download_models.py
+17:import urllib.request
+46:            urllib.request.urlretrieve(url, destination)
+```
+
+Dépendance réseau assumée, limitée à l'installation initiale (téléchargement
+des modèles ONNX une seule fois), pas à l'exécution de l'application —
+conforme à ce que H4 prétend démontrer (autonomie **en fonctionnement**,
+pas à l'installation).
+
+### Test dynamique, réseau coupé
+
+**EN ATTENTE D'EXÉCUTION RÉELLE.** Ce test nécessite de couper la connexion
+réseau de la machine qui exécute l'application, ce qui n'est pas
+applicable à ce sandbox cloud (dont la connectivité réseau sortante est
+gérée par la politique de l'environnement, pas par l'utilisateur, et dont
+la coupure n'aurait de toute façon aucune valeur probante pour ton
+déploiement réel). À exécuter sur ta machine :
+
+```powershell
+# 1. Couper le Wi-Fi / passer en mode avion, puis :
+ping -c 1 8.8.8.8        # doit échouer
+
+# 2. Réseau toujours coupé :
+.venv\Scripts\python -m dogari.web.app
+```
+
+Puis, réseau toujours coupé : ouvrir `http://localhost:8000` (ou le port
+configuré), tenter une reconnaissance faciale via webcam jusqu'à obtenir
+une décision (autorisé/refusé), vérifier que la décision apparaît bien
+dans les journaux d'accès (tableau de bord ou base SQLite), et générer un
+rapport de synthèse. Noter le résultat de chaque étape (réussi/échoué, avec
+message d'erreur exact en cas d'échec), puis rétablir le réseau et
+confirmer que l'application continue de fonctionner normalement.
+
+Coller la sortie complète (y compris `ping` échoué) pour compléter cette
+section.
