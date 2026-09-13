@@ -84,6 +84,10 @@ def main() -> None:
 
     data_yaml = args.output / "data.yaml"
     with data_yaml.open("w", encoding="utf-8") as handle:
+        # `path:` absolu nécessaire : sans lui, `ultralytics` résout train/val
+        # relativement à son dossier global de datasets configuré
+        # (`yolo settings` / settings.json), pas à l'emplacement de ce data.yaml.
+        handle.write(f"path: {args.output.resolve().as_posix()}\n")
         handle.write("train: train/images\n")
         handle.write("val: val/images\n")
         handle.write(f"nc: {len(args.names)}\n")
