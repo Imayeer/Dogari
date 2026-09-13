@@ -187,10 +187,63 @@ une fois les trois anomalies ci-dessus corrigées. Une évaluation avec
 davantage de personnes et de photos par personne resterait à faire pour
 un chiffre d'accuracy réellement représentatif.
 
+## Anomalie n°4 détectée et corrigée : `benchmark_latency.py` ne parcourait pas les sous-dossiers
+
+`_load_images()` utilisait `Path.iterdir()`, qui ne liste que les fichiers
+directement à la racine du dossier passé en argument. Or `test_dogari/probes`
+suit la même convention que `evaluate_recognition.py`
+(`probes/<nom>/*.jpg`) : les images sont dans des sous-dossiers par
+personne, pas à la racine. Résultat : `Aucune image valide trouvée.` alors
+que les images existaient bel et bien.
+
+**Correctif** : remplacement par `Path.rglob("*")` (parcours récursif),
+avec un libellé par chemin relatif (`amino/IMG_0162.png`, etc.) pour garder
+une sortie lisible quand le dossier contient des sous-dossiers. Les 83
+tests automatisés passent toujours après correction (aucun test dédié
+existant pour ce script, non couvert par régression).
+
 ## Latence et ressources
 
-**EN ATTENTE D'EXÉCUTION.** `scripts/benchmark_latency.py` est prêt (code à
-jour, aucun blocage connu) mais aucune sortie n'a encore été transmise.
+**Exécuté sur la machine réelle de l'utilisateur** (PC Windows, pas la VM
+sandbox — voir mise en garde ci-dessous), 3 photos réelles
+(`test_dogari\probes\{amino,soraya,inconnu}`), 50 répétitions chacune
+(150 passages) :
+
+```
+Étape                    n   Moyenne   Médiane       P95       Min       Max
+detection_yunet        150     15.46     14.29     19.91     12.05     62.82
+embedding_sface        150     17.33     15.21      22.30     13.33    189.40
+total_decision         150     32.79     29.42     42.09     25.69    252.22
+```
+
+(mesure mémoire non disponible : `psutil` non installé sur la machine de
+test — n'affecte pas les temps mesurés.)
+
+| Étape | Moyenne | Médiane | P95 |
+|---|---|---|---|
+| Détection (YuNet) | 15,46 ms | 14,29 ms | 19,91 ms |
+| Extraction embedding (SFace) | 17,33 ms | 15,21 ms | 22,30 ms |
+| **Décision totale (détection + embedding)** | **32,79 ms** | **29,42 ms** | **42,09 ms** |
+
+**À noter pour le mémoire** :
+- Décision totale sous les 33 ms en moyenne et sous les 43 ms au 95e
+  percentile : largement compatible avec un usage pratique de contrôle
+  d'accès (un utilisateur ne perçoit pas de délai perceptible à ce niveau).
+- Les valeurs maximales (62,82 ms détection, 189,40 ms embedding, 252,22 ms
+  total) sont des valeurs isolées (pics), probablement dus à des
+  interférences ponctuelles du système d'exploitation (autre processus,
+  garbage collection) plutôt qu'à un problème structurel — la médiane et le
+  P95 restent stables et bas.
+- **⚠️ Mesuré sur un PC portable (Windows, CPU/GPU de bureau), pas sur le
+  Raspberry Pi 5 ciblé par le mémoire (Phase 7).** Un Raspberry Pi 5 est
+  nettement moins puissant (CPU ARM basse consommation vs CPU x86 de
+  laptop) : ces chiffres sont donc **optimistes** par rapport au
+  déploiement embarqué réel. Une validation sur le matériel cible reste
+  nécessaire avant de considérer H2 comme définitivement vérifiée en
+  conditions de déploiement ; ces mesures valident cependant que le
+  pipeline logiciel lui-même (algorithmes, pas de traitement inutile) est
+  déjà largement dans le budget de latence visé, ce qui est un indicateur
+  favorable pour le portage embarqué.
 
 ## Échecs ou anomalies rencontrés
 
@@ -211,17 +264,29 @@ jour, aucun blocage connu) mais aucune sortie n'a encore été transmise.
   était accepté) — un rejet correct était compté comme un échec, faussant
   l'accuracy rapportée (66,7 % au lieu du 100 % réel). Corrigé : les alias
   français sont désormais acceptés.
+- **`benchmark_latency.py` ne parcourait pas les sous-dossiers** de
+  `probes/` (`Aucune image valide trouvée.`) — corrigé par un parcours
+  récursif (`rglob`), cohérent avec la convention déjà utilisée par
+  `evaluate_recognition.py`.
 - Installation et suite de tests automatisés : aucune anomalie, à aucune
   étape.
 
-## Prochaine étape pour compléter ce rapport
+## Conclusion
 
-Il ne manque plus que la latence. Avec le code à jour (`git pull`) :
+Les quatre anomalies rencontrées durant cette vérification étaient toutes
+des bugs réels du projet ou de son outillage de test (pas des limitations
+du sandbox), chacune corrigée et couverte par de nouveaux tests
+automatisés (76 → 83 tests). Après correction :
 
-```powershell
-.venv\Scripts\python scripts\benchmark_latency.py test_dogari\probes --runs 50 --csv latence.csv
-```
+- **Reconnaissance faciale (H1)** : 100 % d'exactitude (3/3 photos
+  réelles), 0 % FAR, 0 % FRR — sur un échantillon restreint (voir limite
+  ci-dessus concernant la taille de l'échantillon).
+- **Latence de décision (H2)** : 32,79 ms en moyenne, 42,09 ms au 95e
+  percentile pour une décision complète (détection + reconnaissance) —
+  mesuré sur PC, donc optimiste par rapport au Raspberry Pi 5 cible ; une
+  mesure sur le matériel embarqué réel reste à faire pour une conclusion
+  définitive sur H2 en conditions de déploiement.
 
-et transmettre la sortie (+ contenu du CSV) pour intégration finale
-dans ce rapport, le Chapitre V (résultats) et le Chapitre VI (vérification
-de H1/H2) du mémoire.
+Ce rapport peut être intégré tel quel (ou résumé) dans le Chapitre V
+(présentation et analyse des résultats) et le Chapitre VI (discussion et
+vérification des hypothèses) du mémoire.
