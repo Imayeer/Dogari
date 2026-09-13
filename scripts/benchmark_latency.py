@@ -40,9 +40,12 @@ except ImportError:
 
 
 def _load_images(path: Path) -> list[tuple[str, np.ndarray]]:
+    """Charge une image unique, ou toutes les images d'un dossier (recherche récursive :
+    couvre aussi bien un dossier plat qu'un dossier organisé par sous-dossiers, comme
+    `probes/<nom>/*.jpg` généré pour `evaluate_recognition.py`)."""
     if path.is_dir():
         extensions = {".jpg", ".jpeg", ".png"}
-        files = sorted(p for p in path.iterdir() if p.suffix.lower() in extensions)
+        files = sorted(p for p in path.rglob("*") if p.suffix.lower() in extensions)
     else:
         files = [path]
 
@@ -52,7 +55,8 @@ def _load_images(path: Path) -> list[tuple[str, np.ndarray]]:
         if frame is None:
             print(f"[ATTENTION] Impossible de lire {file}, ignorée.")
             continue
-        images.append((file.name, frame))
+        label = str(file.relative_to(path)) if path.is_dir() else file.name
+        images.append((label, frame))
 
     if not images:
         print("Aucune image valide trouvée.")
