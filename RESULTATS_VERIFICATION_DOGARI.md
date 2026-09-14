@@ -616,3 +616,32 @@ d'amélioration plutôt que silencieusement omise.
   justifient pas une activation en production sans validation
   supplémentaire, conformément à l'avertissement déjà présent dans le
   README avant ce travail.
+
+## Test qualitatif sur vidéo indépendante (`evaluation.mp4`)
+
+Contrairement aux images de `Dataset/images/` (utilisées pour
+l'entraînement), `evaluation.mp4` (145 frames, fourni dans la même archive
+Kaggle) n'a jamais servi à l'entraînement ni à la validation — c'est donc
+un test qualitatif réellement indépendant, quel que soit l'état du split
+train/val documenté plus haut. Exécuté avec le modèle actuellement
+sauvegardé (`models/weapon_detection.pt`, issu du run au split corrompu —
+à refaire une fois le réentraînement propre disponible) :
+
+```
+yolo predict model=models\weapon_detection.pt source=archive\evaluation.mp4 save=True conf=0.5
+```
+
+**Résultat** : `person` détecté sur 145/145 frames (100 %). `weapon`
+détecté sur 85/145 frames (~59 %), de façon **intermittente** (clignote
+entre les frames 33 et 97), puis **continue et stable de la frame 100 à
+140** (41 frames consécutives sans interruption).
+
+**Interprétation** : motif cohérent avec une scène où l'arme devient
+progressivement plus visible/moins occultée au fil de la vidéo, la
+détection se stabilisant une fois l'objet clairement dans le champ. Le
+clignotement en première partie de vidéo est une limite plausible d'un
+modèle entraîné sur ~113-130 images à `conf=0.5` (score de confiance
+oscillant autour du seuil sur un objet petit, partiellement masqué ou en
+mouvement) — à confirmer par une relecture visuelle de la vidéo annotée
+(`runs/detect/predict/`), non encore effectuée au moment de la rédaction
+de cette section.
