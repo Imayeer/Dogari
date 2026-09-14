@@ -493,3 +493,106 @@ aucune limite identifiée. La démarche complète (5 anomalies réelles
 trouvées et corrigées dans l'outillage de test ou documentées comme
 limites du système, jamais masquées) est elle-même une preuve de rigueur
 méthodologique à valoriser dans le mémoire, au-delà des seuls chiffres.
+
+---
+
+# Détection d'armes (expérimental, hors H1-H4)
+
+> Volet distinct des hypothèses H1-H4 : la détection d'armes est une
+> fonctionnalité expérimentale (`DOGARI_WEAPON_DETECTION_ENABLED`), non
+> couverte par les hypothèses du mémoire, entraînée ici pour disposer d'un
+> premier modèle réel et documenter la démarche.
+
+## Jeu de données
+
+Kaggle, 141 images + labels déjà au format YOLO normalisé, 2 classes
+(`person`, `weapon` — confirmées par recoupement des coordonnées d'un
+`annotation_sample.csv` fourni avec les valeurs normalisées des `.txt`).
+Pas de split train/val fourni, pas de `data.yaml`. Noms de fichiers de la
+forme `SceneN_M.png` (6 scènes : 12, 33, 31, 32, 18 et 15 images), cohérent
+avec la présence d'un `evaluation.mp4` dans l'archive — vraisemblablement
+des frames extraites de courtes séquences vidéo, pas des photos
+indépendantes.
+
+Outillage créé pour ce jeu de données : `scripts/split_weapon_dataset.py`
+(split train/val + génération du `data.yaml`, absent du téléchargement),
+réutilisant `scripts/clean_weapon_dataset.py` et
+`scripts/train_weapon_detector.py` déjà en place. Nettoyage exécuté :
+**0 anomalie** (0 image corrompue, 0 label manquant/malformé, 0 doublon)
+sur les 141 images.
+
+## Anomalie détectée et corrigée : fuite train/val entre frames de la même scène
+
+Un premier entraînement (split aléatoire par image individuelle, 113
+train / 28 val) a donné un résultat très élevé pour la taille du jeu de
+données (mAP50 global 0,941, `person` 0,991). Ce score, surprenant compte
+tenu du faible volume d'entraînement (113 images), a motivé une
+vérification avant d'être retenu — même démarche que pour les anomalies
+H1-H4.
+
+**Cause identifiée** : les noms de fichiers (`SceneN_M`) indiquent que le
+jeu de données est composé de frames extraites de seulement 6 séquences
+vidéo. Un split aléatoire par image individuelle a donc pu placer des
+frames quasi identiques (même scène, même arrière-plan, même personne) à
+la fois dans train et dans val : le modèle a alors pu être évalué sur des
+variantes de ce qu'il avait déjà vu à l'entraînement, plutôt que sur un
+vrai test d'indépendance.
+
+**Correctif appliqué** : ajout de `--group-by-scene` à
+`split_weapon_dataset.py`, qui regroupe les images par préfixe de scène et
+garde toutes les frames d'une même scène dans le même split (jamais
+mélangées). Ce comportement n'est pas activé par défaut : testé et confirmé
+qu'il casserait un dossier de photos nommées `IMG_xxxx` (convention
+répandue, utilisée par les photos réelles de ce projet, ex.
+`probes/amino/IMG_0162.png`) en regroupant à tort toutes les photos en un
+seul bloc — le drapeau reste donc explicite, réservé aux jeux de données où
+le nom de fichier encode une scène source connue.
+
+## Résultats, avant/après correctif
+
+| | Avant (split par image, fuite) | Après (`--group-by-scene`) |
+|---|---|---|
+| Images train / val | 113 / 28 | 109 / 32 (arrondi différent : split par scène entière, pas par proportion exacte) |
+| mAP50 `person` | 0,991 | 0,995 |
+| mAP50 `weapon` | 0,891 | 0,991 |
+| mAP50 global | 0,941 | 0,993 |
+| mAP50-95 global | 0,630 | 0,785 |
+
+**Ce résultat est contre-intuitif** : on s'attendait à ce que corriger la
+fuite fasse *baisser* les métriques, pas les faire monter. Diagnostic avant
+conclusion (même principe que pour les anomalies H1-H4, pas d'acceptation
+d'un chiffre surprenant sans vérification) : le jeu de validation a changé
+de composition (28 → 53 images lors de l'exécution réelle, le split par
+scène entière ne pouvant pas viser une proportion exacte). Avec seulement
+**6 scènes au total**, le choix de la ou des scènes affectées à la
+validation influence fortement la difficulté apparente du test — certaines
+scènes sont probablement intrinsèquement plus faciles (arme plus visible,
+moins d'occlusion) que d'autres, indépendamment de toute fuite.
+
+**Conclusion honnête** : la fuite train/val était un vrai défaut
+méthodologique, corrigé. Mais avec seulement 6 groupes source, un **split
+unique** — peu importe lequel — reste statistiquement peu fiable : ni le
+premier chiffre (0,941) ni le second (0,993) ne doit être présenté comme
+LA performance du modèle. Une validation croisée « leave-one-scene-out »
+(6 entraînements, chacun avec une scène différente en validation)
+donnerait une estimation nettement plus défendable, mais représente ~6×
+le temps déjà investi (~1h30 par entraînement sur CPU) — non réalisée ici,
+signalée comme piste d'amélioration plutôt que silencieusement omise.
+
+## Limites à assumer explicitement (mémoire)
+
+- **141 images, 6 scènes sources seulement** : risque de surapprentissage
+  au contexte visuel de ces 6 scènes précises plutôt qu'à la détection
+  d'armes en général (arrière-plan, éclairage, angle de caméra).
+- **Entraînement CPU** (pas de GPU CUDA disponible/installé sur la machine
+  de test), YOLOv8n (le plus petit modèle de la famille) — un modèle plus
+  grand et/ou un entraînement plus long pourrait améliorer la robustesse,
+  au prix du temps de calcul.
+- **Aucune évaluation qualitative sur images/vidéo hors dataset** à ce
+  stade (ex. le fichier `evaluation.mp4` fourni avec l'archive, non encore
+  utilisé pour un test visuel indépendant).
+- Fonctionnalité explicitement marquée expérimentale dans le projet
+  (`DOGARI_WEAPON_DETECTION_ENABLED=false` par défaut) — ces résultats ne
+  justifient pas une activation en production sans validation
+  supplémentaire, conformément à l'avertissement déjà présent dans le
+  README avant ce travail.
