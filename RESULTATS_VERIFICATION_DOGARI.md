@@ -548,36 +548,56 @@ répandue, utilisée par les photos réelles de ce projet, ex.
 seul bloc — le drapeau reste donc explicite, réservé aux jeux de données où
 le nom de fichier encode une scène source connue.
 
-## Résultats, avant/après correctif
+## Anomalie n°2 (outillage) : `split_weapon_dataset.py` ne nettoyait pas son dossier de sortie
 
-| | Avant (split par image, fuite) | Après (`--group-by-scene`) |
-|---|---|---|
-| Images train / val | 113 / 28 | 109 / 32 (arrondi différent : split par scène entière, pas par proportion exacte) |
-| mAP50 `person` | 0,991 | 0,995 |
-| mAP50 `weapon` | 0,891 | 0,991 |
-| mAP50 global | 0,941 | 0,993 |
-| mAP50-95 global | 0,630 | 0,785 |
+Le premier essai avec `--group-by-scene` a été relancé sur le **même**
+dossier `--output dataset_split` que le split précédent (individuel, 113
+train / 28 val), sans le vider au préalable — le script copiait les
+nouveaux fichiers par-dessus l'ancien contenu au lieu de repartir d'un
+dossier propre. Résultat observé côté entraînement : 53 images en
+validation, un nombre qui ne correspond ni au calcul attendu pour un split
+par scène sur ce jeu de données (32, scène « Scene4 » seule — vérifié en
+rejouant l'algorithme de split avec les tailles réelles des 6 scènes et la
+graine par défaut) ni à un split individuel classique. Cause confirmée :
+un mélange partiel entre l'ancien `val/` (images individuelles d'origines
+diverses) et le nouveau (les 32 images de la scène 4), les deux jeux de
+fichiers coexistant dans le même dossier sans jamais avoir été fusionnés
+intentionnellement. Le nombre « 53 » rapporté dans une version précédente
+de ce document, ainsi que le tableau associé, étaient donc **basés sur un
+split corrompu silencieusement** — erreur repérée avant intégration
+définitive au mémoire, sur relecture attentive du texte par l'utilisateur
+signalant l'incohérence entre deux chiffres du brouillon.
 
-**Ce résultat est contre-intuitif** : on s'attendait à ce que corriger la
-fuite fasse *baisser* les métriques, pas les faire monter. Diagnostic avant
-conclusion (même principe que pour les anomalies H1-H4, pas d'acceptation
-d'un chiffre surprenant sans vérification) : le jeu de validation a changé
-de composition (28 → 53 images lors de l'exécution réelle, le split par
-scène entière ne pouvant pas viser une proportion exacte). Avec seulement
-**6 scènes au total**, le choix de la ou des scènes affectées à la
-validation influence fortement la difficulté apparente du test — certaines
-scènes sont probablement intrinsèquement plus faciles (arme plus visible,
-moins d'occlusion) que d'autres, indépendamment de toute fuite.
+**Correctif appliqué** : `split_weapon_dataset.py` refuse désormais de
+s'exécuter sur un `--output` contenant déjà un split (`train/` et/ou
+`val/`), sauf si `--overwrite` est passé explicitement — auquel cas il
+supprime `train/`, `val/` et `data.yaml` avant de régénérer, garantissant
+que le split obtenu correspond exactement à ce que le script rapporte (et
+supprimant au passage tout `labels.cache` `ultralytics` périmé qui aurait
+pu, lui aussi, rester associé à l'ancien contenu).
 
-**Conclusion honnête** : la fuite train/val était un vrai défaut
-méthodologique, corrigé. Mais avec seulement 6 groupes source, un **split
-unique** — peu importe lequel — reste statistiquement peu fiable : ni le
-premier chiffre (0,941) ni le second (0,993) ne doit être présenté comme
-LA performance du modèle. Une validation croisée « leave-one-scene-out »
-(6 entraînements, chacun avec une scène différente en validation)
-donnerait une estimation nettement plus défendable, mais représente ~6×
-le temps déjà investi (~1h30 par entraînement sur CPU) — non réalisée ici,
-signalée comme piste d'amélioration plutôt que silencieusement omise.
+**Statut de l'entraînement « après correctif »** : l'exécution ayant produit
+le score de 0,993 de mAP50 (obtenue sur ce split corrompu à 53 images) n'est
+**pas valide** et ne doit pas être citée dans le mémoire. Un nouvel
+entraînement, sur un split régénéré proprement avec `--overwrite`, reste à
+relancer pour obtenir un chiffre « après correctif » réellement comparable
+au premier (113/28, 0,941 de mAP50). En attendant cette ré-exécution, seul
+le premier résultat (avant correctif de la fuite scène, mais sur un split
+au moins cohérent avec ce qu'il rapporte) peut être cité, avec la réserve
+qu'il est probablement optimiste à cause de la fuite documentée plus haut.
+
+**Point méthodologique à retenir pour le mémoire, indépendamment du chiffre
+final** : avec seulement **6 scènes source au total**, le choix de la ou
+des scènes affectées à la validation influence fortement la difficulté
+apparente du test — certaines scènes sont probablement intrinsèquement plus
+faciles (arme plus visible, moins d'occlusion) que d'autres. Un **split
+unique**, quel qu'il soit, reste donc statistiquement peu fiable sur un jeu
+de données aussi restreint en nombre de scènes indépendantes. Une
+validation croisée « leave-one-scene-out » (6 entraînements, chacun avec
+une scène différente en validation) donnerait une estimation nettement plus
+défendable, mais représente ~6× le temps déjà investi (~1h30 par
+entraînement sur CPU) — non réalisée ici, signalée comme piste
+d'amélioration plutôt que silencieusement omise.
 
 ## Limites à assumer explicitement (mémoire)
 

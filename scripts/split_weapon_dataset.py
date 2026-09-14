@@ -101,7 +101,34 @@ def main() -> None:
             "par défaut, sinon un dossier de photos 'IMG_xxxx' serait groupé à tort en un seul bloc."
         ),
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Supprime train/, val/ et data.yaml existants sous --output avant de régénérer le split.",
+    )
     args = parser.parse_args()
+
+    # Régression réelle : sans ce contrôle, relancer ce script sur un --output déjà utilisé
+    # (ex. après avoir changé --group-by-scene ou --seed) COPIE les nouveaux fichiers par-dessus
+    # l'ancien contenu sans le vider. Les anciennes images restent mélangées avec les nouvelles :
+    # le split rapporté (et ses garanties, ex. « aucune scène partagée entre train et val ») ne
+    # correspond alors plus à ce qui est réellement sur le disque, silencieusement.
+    stale = [p for p in (args.output / "train", args.output / "val") if p.exists()]
+    if stale and not args.overwrite:
+        print(
+            f"[ERREUR] {args.output} contient déjà un split (train/ et/ou val/). Le réutiliser sans le "
+            "vider mélangerait l'ancien contenu avec le nouveau et fausserait le split silencieusement. "
+            "Relancez avec --overwrite pour régénérer proprement, ou choisissez un --output différent.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    if args.overwrite:
+        for stale_dir in (args.output / "train", args.output / "val"):
+            if stale_dir.exists():
+                shutil.rmtree(stale_dir)
+        data_yaml_path = args.output / "data.yaml"
+        if data_yaml_path.exists():
+            data_yaml_path.unlink()
 
     pairs = _find_pairs(args.source)
     if not pairs:
