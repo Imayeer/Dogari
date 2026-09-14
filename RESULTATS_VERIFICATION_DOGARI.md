@@ -636,12 +636,29 @@ détecté sur 85/145 frames (~59 %), de façon **intermittente** (clignote
 entre les frames 33 et 97), puis **continue et stable de la frame 100 à
 140** (41 frames consécutives sans interruption).
 
-**Interprétation** : motif cohérent avec une scène où l'arme devient
-progressivement plus visible/moins occultée au fil de la vidéo, la
-détection se stabilisant une fois l'objet clairement dans le champ. Le
-clignotement en première partie de vidéo est une limite plausible d'un
-modèle entraîné sur ~113-130 images à `conf=0.5` (score de confiance
-oscillant autour du seuil sur un objet petit, partiellement masqué ou en
-mouvement) — à confirmer par une relecture visuelle de la vidéo annotée
-(`runs/detect/predict/`), non encore effectuée au moment de la rédaction
-de cette section.
+**Vérification visuelle effectuée** (relecture de la vidéo annotée) —
+l'hypothèse initiale (arme progressivement plus visible/moins occultée)
+s'est révélée **fausse** une fois vérifiée sur les frames réelles, et a
+donc été abandonnée plutôt que présentée sans preuve. Comparaison directe :
+la frame 35 (arme détectée, confiance 0,76) et la frame 65 (arme **non**
+détectée) montrent l'arme dans une pose, une distance et un angle
+quasiment identiques — la scène ne change pas significativement entre les
+deux. L'arme reste visible et tenue de la même façon sur l'ensemble des
+frames 33 à 145 (vérifié sur les frames 35, 65, 90, 110 et 130).
+
+**Interprétation corrigée** : le clignotement ne correspond pas à une
+occlusion réelle de la scène, mais à une **instabilité du score de
+confiance du modèle autour du seuil de 0,5**, frame à frame, sur une scène
+pourtant quasi statique (confiance observée entre 0,64 et 0,80 quand
+détecté, absence totale de détection à la frame 65 malgré une visibilité
+équivalente). C'est le signe d'un modèle proche de sa frontière de
+décision plutôt que d'un phénomène expliqué par le contenu de la scène —
+cohérent avec un entraînement sur seulement ~113-130 images et 6 scènes
+sources. La détection `person`, en comparaison, reste stable et confiante
+sur toute la vidéo (0,87 à 0,98), ce qui situe bien le problème du côté de
+la détection d'armes spécifiquement, pas de la détection en général.
+
+Cette instabilité (plutôt qu'un chiffre de mAP à lui seul) est l'argument
+le plus concret pour justifier, dans le mémoire, qu'une activation en
+production de cette fonctionnalité expérimentale nécessiterait un jeu de
+données nettement plus large et diversifié avant d'être envisageable.
