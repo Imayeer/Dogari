@@ -1,0 +1,178 @@
+"""Orchestration du contrôle d'accès : reconnaissance, décision, porte, journal.
+
+Chaque tentative d'accès cible un portail précis (`storage.models.Portal`) :
+un point d'accès nommé avec sa propre caméra et son propre contrôle de porte.
+Un visage reconnu ne suffit pas à accorder l'accès : le rôle de l'utilisateur
+doit en plus être autorisé sur CE portail, à CE moment (voir
+`access/role_access.py`).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+from dogari.access.door import DoorController, get_door_controller_for_portal
+from dogari.access.role_access import is_role_authorized_for_portal
+from dogari.core.config import parse_camera_source, settings
+from dogari.core.constants import AccessStatus, RecognitionStatus
+from dogari.core.exceptions import CameraError
+from dogari.storage.access_logs_repository import create_log
+from dogari.storage.models import AccessLog, Portal, User
+from dogari.storage.portals_repository import get_portal_by_id
+from dogari.storage.users_repository import get_active_users_with_embeddings
+from dogari.vision.camera import Camera
+from dogari.vision.detector import detect_single_face
+from dogari.vision.embeddings import generate_embedding
+from dogari.vision.liveness import check_liveness
+from dogari.vision.recognizer import FaceRecognizer
+
+
+@dataclass
+class AccessAttemptResult:
+    """Résultat complet d'une tentative d'accès, prêt à être exposé par l'API."""
+
+    access_status: AccessStatus
+    recognition_status: RecognitionStatus
+    user: User | None
+    similarity_score: float | None
+    message: str
+    log: AccessLog
+
+
+class AccessController:
+    """Point d'entrée unique pour lancer une tentative de reconnaissance/accès sur un portail donné.
+
+    Les dépendances (caméra, porte) sont injectables afin de permettre les
+    tests unitaires sans matériel réel.
+    """
+
+    def __init__(
+        self,
+        portal_id: int,
+        door_controller: DoorController | None = None,
+    ) -> None:
+        self.portal: Portal = get_portal_by_id(portal_id)
+        self.camera_source = parse_camera_source(self.portal.camera_source)
+        self.door_controller = door_controller or get_door_controller_for_portal(
+            self.portal.door_type, self.portal.gpio_relay_pin
+        )
+
+    def attempt_access(self, frame: np.ndarray | None = None) -> AccessAttemptResult:
+        """Exécute une tentative d'accès complète sur ce portail et journalise le résultat.
+
+        Si `frame` est fourni, la capture caméra (et la détection de vivacité,
+        qui nécessite plusieurs images) est court-circuitée : utile pour les
+        tests et pour l'upload d'une image unique via l'API web.
+        """
+        camera_label = str(self.camera_source)
+
+        try:
+            if frame is None:
+                with Camera(self.camera_source) as camera:
+                    frames = camera.capture_burst(settings.liveness_frame_count, settings.liveness_capture_interval)
+            else:
+                frames = [frame]
+        except CameraError as exc:
+            return self._record(
+                access_status=AccessStatus.ERROR,
+                recognition_status=RecognitionStatus.ERROR,
+                user=None,
+                similarity_score=None,
+                message=str(exc),
+                camera_source=camera_label,
+            )
+
+        primary_frame = frames[-1]
+        face_location = detect_single_face(primary_frame)
+        if face_location is None:
+            return self._record(
+                access_status=AccessStatus.DENIED,
+                recognition_status=RecognitionStatus.NO_FACE_DETECTED,
+                user=None,
+                similarity_score=None,
+                message="Aucun visage détecté dans l'image capturée.",
+                camera_source=camera_label,
+            )
+
+        if settings.liveness_enabled:
+            liveness = check_liveness(frames, face_location)
+            if not liveness.is_live:
+                return self._record(
+                    access_status=AccessStatus.DENIED,
+                    recognition_status=RecognitionStatus.SPOOF_DETECTED,
+                    user=None,
+                    similarity_score=None,
+                    message=(
+                        "Échec de la détection de vivacité (photo ou écran suspecté), "
+                        f"score de mouvement : {liveness.motion_score:.2f}."
+                    ),
+                    camera_source=camera_label,
+                )
+
+        embedding = generate_embedding(primary_frame, face_location)
+        known_users = get_active_users_with_embeddings()
+        recognizer = FaceRecognizer(known_users)
+        match = recognizer.identify(embedding)
+
+        if not match.matched:
+            return self._record(
+                access_status=AccessStatus.DENIED,
+                recognition_status=RecognitionStatus.UNKNOWN,
+                user=None,
+                similarity_score=match.score,
+                message="Visage détecté mais non reconnu parmi les utilisateurs autorisés.",
+                camera_source=camera_label,
+            )
+
+        role_access = is_role_authorized_for_portal(match.user.role_id, self.portal.id)
+        if not role_access.authorized:
+            return self._record(
+                access_status=AccessStatus.DENIED,
+                recognition_status=RecognitionStatus.PORTAL_NOT_AUTHORIZED,
+                user=match.user,
+                similarity_score=match.score,
+                message=(
+                    f"{match.user.full_name} reconnu(e), mais non autorisé(e) sur le portail "
+                    f"'{self.portal.name}' : {role_access.reason}"
+                ),
+                camera_source=camera_label,
+            )
+
+        self.door_controller.open_door()
+        return self._record(
+            access_status=AccessStatus.GRANTED,
+            recognition_status=RecognitionStatus.AUTHORIZED,
+            user=match.user,
+            similarity_score=match.score,
+            message=f"Accès autorisé pour {match.user.full_name} sur '{self.portal.name}'.",
+            camera_source=camera_label,
+        )
+
+    def _record(
+        self,
+        access_status: AccessStatus,
+        recognition_status: RecognitionStatus,
+        user: User | None,
+        similarity_score: float | None,
+        message: str,
+        camera_source: str,
+    ) -> AccessAttemptResult:
+        log = create_log(
+            status=access_status.value,
+            user_id=user.id if user else None,
+            full_name=user.full_name if user else None,
+            similarity_score=similarity_score,
+            camera_source=camera_source,
+            portal_id=self.portal.id,
+            message=message,
+        )
+        return AccessAttemptResult(
+            access_status=access_status,
+            recognition_status=recognition_status,
+            user=user,
+            similarity_score=similarity_score,
+            message=message,
+            log=log,
+        )

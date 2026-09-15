@@ -1,0 +1,16 @@
+# Dépendance optionnelle pour la détection d'armes EXPÉRIMENTALE
+# (src/dogari/vision/weapon_detector.py). Non incluse dans requirements.txt
+# car elle installe torch (lourd) et n'apporte aucune garantie de fiabilité :
+# voir le README avant d'activer DOGARI_WEAPON_DETECTION_ENABLED.
+#
+# Installation :
+#   pip install -r requirements-weapon-detection.txt
+
+ultralytics==8.3.55
+
+# ultralytics==8.3.55 appelle numpy.trapz en interne (utils/metrics.py), supprimé
+# dans les versions récentes de NumPy (regression réelle rencontrée : "AttributeError:
+# module 'numpy' has no attribute 'trapz'" avec numpy 2.5.3, installé faute de borne
+# supérieure ici). Contrainte à la version déjà utilisée par requirements.txt, qui la
+# possède encore.
+numpy==1.26.4
