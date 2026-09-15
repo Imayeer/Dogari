@@ -378,8 +378,44 @@ nécessaire avant tout déploiement réel s'appuyant sur cette protection —
 point à développer explicitement en discussion (Chapitre VI) comme limite
 assumée du prototype plutôt que comme hypothèse validée.
 
-`liveness.csv` (détail des 30 essais) disponible auprès de l'utilisateur
-pour annexe si le mémoire en a besoin.
+### Annexe : `liveness.csv`, les 27 essais valides bruts
+
+Reçu et vérifié cohérent avec le résumé ci-dessus (l'essai 9 du scénario
+`reel`, seul `False`, correspond bien à l'unique faux rejet documenté ;
+tous les essais `photo_imprimee` et `photo_ecran` sont bien `True`,
+confirmant le 0 % d'ADR). 3 essais sur 30 lancés sont absents de ce
+tableau (aucun visage détecté sur la dernière image de la rafale —
+comportement attendu du script, non une anomalie).
+
+| scenario | essai | is_live | motion_score |
+|---|---|---|---|
+| reel | 2 | True | 3,6473 |
+| reel | 3 | True | 4,83 |
+| reel | 5 | True | 6,1285 |
+| reel | 6 | True | 5,3727 |
+| reel | 7 | True | 3,8254 |
+| reel | 8 | True | 1,6404 |
+| reel | 9 | **False** | 1,3697 |
+| reel | 10 | True | 5,0596 |
+| photo_imprimee | 2 | True | 20,6816 |
+| photo_imprimee | 3 | True | 38,1193 |
+| photo_imprimee | 4 | True | 41,0325 |
+| photo_imprimee | 5 | True | 33,9238 |
+| photo_imprimee | 6 | True | 23,8243 |
+| photo_imprimee | 7 | True | 25,4908 |
+| photo_imprimee | 8 | True | 7,0693 |
+| photo_imprimee | 9 | True | 9,1348 |
+| photo_imprimee | 10 | True | 12,7417 |
+| photo_ecran | 1 | True | 17,549 |
+| photo_ecran | 2 | True | 11,7712 |
+| photo_ecran | 3 | True | 12,83 |
+| photo_ecran | 4 | True | 7,0624 |
+| photo_ecran | 5 | True | 5,5907 |
+| photo_ecran | 6 | True | 11,5775 |
+| photo_ecran | 7 | True | 16,6006 |
+| photo_ecran | 8 | True | 13,4717 |
+| photo_ecran | 9 | True | 9,4855 |
+| photo_ecran | 10 | True | 8,0089 |
 
 ## H4 : autonomie hors connexion
 
