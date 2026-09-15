@@ -8,6 +8,7 @@ avec moyenne, médiane et 95e percentile.
 Utilisation :
     python scripts/benchmark_latency.py chemin/vers/une_image.jpg --runs 50
     python scripts/benchmark_latency.py chemin/vers/un_dossier_dimages/ --runs 50 --csv latence.csv
+    python scripts/benchmark_latency.py chemin/vers/un_dossier_dimages/ --runs 50 --raw-csv latence_brute.csv
 
 Si `psutil` est installé, la mémoire résidente du processus est aussi
 rapportée avant et après la boucle de mesure (installation optionnelle :
@@ -90,6 +91,14 @@ def main() -> None:
     parser.add_argument("images", type=Path, help="Image unique ou dossier d'images de test")
     parser.add_argument("--runs", type=int, default=30, help="Nombre de répétitions par image (défaut 30)")
     parser.add_argument("--csv", type=Path, default=None, help="Chemin d'export CSV du résumé")
+    parser.add_argument(
+        "--raw-csv",
+        type=Path,
+        default=None,
+        help="Chemin d'export CSV du détail brut (une ligne par passage : image, numéro d'essai, "
+        "temps de détection/embedding/total en ms) — nécessaire pour citer les mesures individuelles "
+        "(ex. en annexe de mémoire), le résumé agrégé seul ne les conserve pas.",
+    )
     args = parser.parse_args()
 
     images = _load_images(args.images)
@@ -98,13 +107,14 @@ def main() -> None:
     detection_ms: list[float] = []
     embedding_ms: list[float] = []
     total_ms: list[float] = []
+    raw_rows: list[dict] = []
     no_face_count = 0
 
     if _PROCESS:
         mem_before = _PROCESS.memory_info().rss / (1024 * 1024)
 
     for name, frame in images:
-        for _ in range(args.runs):
+        for run_index in range(1, args.runs + 1):
             t0 = time.perf_counter()
             face = detect_single_face(frame)
             t1 = time.perf_counter()
@@ -116,9 +126,22 @@ def main() -> None:
             _ = generate_embedding(frame, face)
             t2 = time.perf_counter()
 
-            detection_ms.append((t1 - t0) * 1000)
-            embedding_ms.append((t2 - t1) * 1000)
-            total_ms.append((t2 - t0) * 1000)
+            run_detection_ms = (t1 - t0) * 1000
+            run_embedding_ms = (t2 - t1) * 1000
+            run_total_ms = (t2 - t0) * 1000
+
+            detection_ms.append(run_detection_ms)
+            embedding_ms.append(run_embedding_ms)
+            total_ms.append(run_total_ms)
+            raw_rows.append(
+                {
+                    "image": name,
+                    "essai": run_index,
+                    "detection_ms": round(run_detection_ms, 4),
+                    "embedding_ms": round(run_embedding_ms, 4),
+                    "total_ms": round(run_total_ms, 4),
+                }
+            )
 
         print(f"[OK] {name} : traité.")
 
@@ -151,6 +174,13 @@ def main() -> None:
             writer.writeheader()
             writer.writerows(rows)
         print(f"\nRésumé exporté vers {args.csv}")
+
+    if args.raw_csv:
+        with args.raw_csv.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(raw_rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(raw_rows)
+        print(f"Détail brut ({len(raw_rows)} mesures) exporté vers {args.raw_csv}")
 
 
 if __name__ == "__main__":
